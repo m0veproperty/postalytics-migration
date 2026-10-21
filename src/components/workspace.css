@@ -321,10 +321,10 @@ tbody tr:hover { background: #fcfdf9; }
 .decision-filters > label:not(.search-field) { min-width: 150px; }
 .decision-filters select { max-width: 230px; }
 .decisions-table { table-layout: fixed; }
-.decisions-table th:nth-child(1) { width: 34%; }
-.decisions-table th:nth-child(2) { width: 24%; }
-.decisions-table th:nth-child(3) { width: 23%; }
-.decisions-table th:nth-child(4) { width: 15%; }
+.decisions-table th:nth-child(1) { width: 30%; }
+.decisions-table th:nth-child(2) { width: 22%; }
+.decisions-table th:nth-child(3) { width: 24%; }
+.decisions-table th:nth-child(4) { width: 20%; }
 .decisions-table th:nth-child(5) { width: 4%; }
 .decisions-table td { padding: 16px 15px; }
 .decisions-table td:last-child { padding-left: 0; padding-right: 7px; }
@@ -339,6 +339,18 @@ tbody tr:hover { background: #fcfdf9; }
 .same-url { display: inline-flex; align-items: center; gap: 4px; color: #546c3f; white-space: nowrap; }
 .target-unresolved { color: #7c622d; font-size: 10.5px; background: #fbf3da; padding: 4px 7px; border-radius: 4px; display: inline-block; }
 .decisions-table .status-badge { font-size: 10.5px; }
+.approval-edit-instructions { display: flex; align-items: flex-start; gap: 8px; color: #556a46; font-size: 11.5px; line-height: 1.65; margin: 2px 0 16px; }
+.approval-edit-instructions > svg { flex-shrink: 0; margin-top: 2px; }
+.approval-select { display: block; width: 100%; max-width: 180px; }
+.approval-select select { min-height: 38px; padding: 8px 25px 8px 9px; border: 1px solid #cad8c0; background-color: #f3f7ed; color: #4b603b; font-size: 11px; font-weight: 550; }
+.approval-select select:hover:not(:disabled) { border-color: #668854; }
+.approval-approved select { background-color: #e6f1df; color: #37612c; border-color: #b7d1a8; }
+.approval-needs-discussion select { background-color: #fbf2cd; color: #776023; border-color: #e4d397; }
+.approval-rejected select { background-color: #faede5; color: #914c32; border-color: #e0bfac; }
+.approval-select option { color: #334329; background: white; }
+.treatment-basis { display: block; margin-bottom: 6px; font-size: 9.5px; line-height: 1.5; text-transform: uppercase; letter-spacing: .055em; color: #69745e; }
+.treatment-basis.is-approved { color: #3b733b; font-weight: 650; }
+.proposal-context { overflow-wrap: anywhere; }
 .pagination { padding: 13px 17px; border-top: 1px solid #e3ead8; background: #fcfdf9; display: flex; align-items: center; justify-content: space-between; gap: 15px; color: #5f6a54; font-size: 10.5px; }
 .pagination > div { display: flex; align-items: center; gap: 9px; }
 .pagination > div > span { font-size: 10.5px; color: #5a6a4c; min-width: 43px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -531,6 +543,13 @@ tbody tr:hover { background: #fcfdf9; }
 .observation > span:not(:first-child) { font-size: 10.5px; line-height: 1.7; color: #5a6946; }
 .observation > small { font-size: 10.5px; color: #5e6951; }
 .approval-confirm { background: #f3f7eb; border: 1px solid #dce7ce; border-radius: 7px; padding: 14px; font-size: 11.5px; color: #586a44; }
+.decision-edit-shortcut { margin-left: auto; font-size: 11.5px; }
+.draft-notice { padding: 10px 12px; margin: 14px 0; border: 1px solid #e6dbb4; border-radius: 6px; background: #fff8df; color: #76612f; font-size: 11px; line-height: 1.6; }
+.destination-shortcuts { margin-top: -8px; }
+.destination-shortcuts:empty { display: none; }
+.destination-shortcuts > .text-link { font-size: 11px; }
+.decision-save-actions > div { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.decision-save-actions > .fine-print { min-width: 0; }
 
 /* Loading, notices, and the authenticated entry. */
 .boot-screen { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; padding: 30px; background: #f4f7ee; text-align: center; }
@@ -803,14 +822,21 @@ tbody tr:hover { background: #fcfdf9; }
   .section-decisions .list-tabs > .button { font-size: 10.5px; }
   .decisions-table { display: none; }
   .mobile-decision-list { display: grid; }
-  .mobile-decision-list > button { display: grid; gap: 10px; padding: 18px 19px; border: 0; border-bottom: 1px solid #e3ecd6; background: white; text-align: left; }
-  .mobile-decision-list > button:last-child { border-bottom: 0; }
-  .mobile-decision-list > button > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
-  .mobile-decision-list > button > strong { font-size: 12px; color: #4b6e34; font-weight: 550; line-height: 1.7; overflow-wrap: anywhere; }
-  .mobile-decision-list > button > span { color: #5b694e; font-size: 10.5px; line-height: 1.65; }
+  .mobile-decision-card { display: grid; gap: 13px; padding: 18px 19px; border-bottom: 1px solid #e3ecd6; background: white; text-align: left; min-width: 0; }
+  .mobile-decision-card:last-child { border-bottom: 0; }
+  .mobile-decision-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+  .mobile-decision-heading .approval-select { max-width: 175px; }
+  .mobile-decision-heading .approval-select select { min-height: 44px; font-size: 13px; }
+  .mobile-decision-review { display: grid; gap: 10px; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; min-width: 0; }
+  .mobile-decision-review > strong { font-size: 12px; color: #4b6e34; font-weight: 550; line-height: 1.7; overflow-wrap: anywhere; }
+  .mobile-decision-review > span { color: #5b694e; font-size: 10.5px; line-height: 1.65; }
   .mobile-treatment { display: flex; align-items: center; gap: 11px; padding-top: 10px; border-top: 1px solid #ecf2e2; }
-  .mobile-treatment > span { flex: 1; font-size: 10.5px; color: #5a6b4a; line-height: 1.65; overflow-wrap: anywhere; }
+  .mobile-treatment > div { flex: 1; min-width: 0; font-size: 10.5px; color: #5a6b4a; line-height: 1.65; overflow-wrap: anywhere; }
   .mobile-treatment > svg { color: #5d6a53; }
+  .mobile-decision-review > .mobile-review-label { display: flex; align-items: center; gap: 6px; color: #3c6f45; font-weight: 600; padding-top: 3px; }
+  .decision-save-actions { flex-wrap: wrap; }
+  .decision-save-actions > .fine-print { max-width: 100%; }
+  .decision-save-actions > div { margin-left: auto; }
   .pagination { padding: 12px; font-size: 10.5px; gap: 9px; flex-wrap: wrap; }
   .pagination > div { gap: 5px; margin-left: auto; }
   .pagination select { font-size: 10.5px; max-width: 94px; }

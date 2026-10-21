@@ -3,7 +3,7 @@
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowUpRight, Check, CheckCircle, DownloadSimple, FileText, Info, LockSimple, PaperPlaneTilt, Plus, SpinnerGap, WarningCircle, X } from '@phosphor-icons/react';
 import type { Asset, Decision, DecisionFields, Mutation, Priority, ProjectData, Status, Task, Workstream, WorkspaceState } from './portalTypes';
-import { DECISION_DEFAULTS, formatDate, initials, PRIORITY_LABELS, safeHref, shortUrl, STATUSES, STATUS_LABELS } from './portalUtils';
+import { APPROVAL_HELP, APPROVAL_STATUSES, DECISION_ACTION_LABELS, DECISION_DEFAULTS, formatDate, initials, londonDate, PRIORITY_LABELS, safeHref, shortUrl, STATUSES, STATUS_LABELS } from './portalUtils';
 
 type Mutate = (payload: Mutation, message?: string) => Promise<WorkspaceState>;
 
@@ -13,6 +13,9 @@ export function StatusBadge({ status }: { status: Status }) {
 export function ApprovalBadge({ status }: { status: string }) {
   const color = status === 'Approved' ? 'done' : status === 'Needs discussion' ? 'review' : status === 'Rejected' ? 'blocked' : 'todo';
   return <span className={`status-badge status-${color}`}><span aria-hidden="true" />{status}</span>;
+}
+export function ApprovalSelect({ decision, disabled, onChoose }: { decision: Decision; disabled: boolean; onChoose: (id: string, status: DecisionFields['approvalStatus']) => void }) {
+  return <label className={`approval-select approval-${decision.approvalStatus.toLowerCase().replaceAll(' ', '-')}`}><span className="sr-only">Change approval for {decision.id}</span><select aria-label={`Change approval for ${decision.id}`} value={decision.approvalStatus} disabled={disabled} aria-describedby="approval-edit-instructions" onChange={e => onChoose(decision.id, e.target.value as DecisionFields['approvalStatus'])}>{APPROVAL_STATUSES.map(status => <option value={status} key={status}>{status}</option>)}</select></label>;
 }
 export function PriorityBadge({ priority }: { priority: Priority }) {
   return <span className={`priority-badge priority-${priority}`}><i aria-hidden="true" />{PRIORITY_LABELS[priority] || priority}</span>;
@@ -195,14 +198,21 @@ export function NewTaskModal({ project, tasks, busy, mutate, onClose }: { projec
   </form></Modal>;
 }
 
-export function DecisionDrawer({ decision, canEdit, busy, mutate, onClose, onLogin }: { decision: Decision; canEdit: boolean; busy: boolean; mutate: Mutate; onClose: () => void; onLogin: () => void }) {
+export function DecisionDrawer({ decision, initialApprovalStatus, canEdit, busy, mutate, onClose, onLogin }: { decision: Decision; initialApprovalStatus?: DecisionFields['approvalStatus']; canEdit: boolean; busy: boolean; mutate: Mutate; onClose: () => void; onLogin: () => void }) {
   const fields = (d: Decision): DecisionFields => ({ approvalStatus: d.approvalStatus, approvedAction: d.approvedAction, approvedTarget: d.approvedTarget, approver: d.approver, approvalDate: d.approvalDate, evidence: d.evidence, notes: d.notes, conditionsConfirmed: d.conditionsConfirmed });
-  const [draft, setDraft] = useState<DecisionFields>(fields(decision));
+  const [draft, setDraft] = useState<DecisionFields>(() => ({ ...fields(decision), ...(initialApprovalStatus ? { approvalStatus: initialApprovalStatus, ...(initialApprovalStatus === 'Approved' && decision.approvalStatus !== 'Approved' ? { conditionsConfirmed: false } : {}) } : {}) }));
+  const [savedFields, setSavedFields] = useState<DecisionFields>(fields(decision));
   const [baselineRevision, setBaselineRevision] = useState(decision.revision);
   const [error, setError] = useState('');
+  const approvalField = useRef<HTMLSelectElement>(null);
   const isApproved = draft.approvalStatus === 'Approved';
   const stale = decision.revision !== baselineRevision;
+  const hasChanges = JSON.stringify(draft) !== JSON.stringify(savedFields);
   const targetRequired = ['Retain', 'Redirect', 'External service', 'Fix link'].includes(draft.approvedAction);
+  function focusApproval() { approvalField.current?.scrollIntoView({ block: 'center', behavior: 'instant' }); approvalField.current?.focus({ preventScroll: true }); }
+  useEffect(() => { if (!initialApprovalStatus) return; const frame = requestAnimationFrame(focusApproval); return () => cancelAnimationFrame(frame); }, [initialApprovalStatus]);
+  function chooseStatus(status: DecisionFields['approvalStatus']) { setDraft(previous => ({ ...previous, approvalStatus: status, conditionsConfirmed: status === 'Approved' && previous.approvalStatus !== 'Approved' ? false : previous.conditionsConfirmed })); }
+  function chooseTarget(target: string) { setDraft(previous => ({ ...previous, approvedTarget: target, conditionsConfirmed: previous.approvedTarget === target ? previous.conditionsConfirmed : false })); }
   async function submit(e: FormEvent) {
     e.preventDefault(); setError('');
     if (stale) { setError('This decision changed while you were editing. Reload the latest version before saving.'); return; }
@@ -215,25 +225,27 @@ export function DecisionDrawer({ decision, canEdit, busy, mutate, onClose, onLog
     catch (e) { setError(e instanceof Error ? e.message : 'The decision could not be saved.'); }
   }
   return <Modal title={decision.title || shortUrl(decision.url)} eyebrow={`URL decision · ${decision.id}`} onClose={onClose} drawer>
-    <div className="dialog-body"><div className="detail-meta"><ApprovalBadge status={decision.approvalStatus} /><span className="subtle-count">{decision.group || decision.role}</span></div>
+    <div className="dialog-body"><div className="detail-meta"><ApprovalBadge status={decision.approvalStatus} /><span className="subtle-count">{decision.group || decision.role}</span>{canEdit && <button className="text-link decision-edit-shortcut" type="button" onClick={focusApproval}>Edit approval<ArrowUpRight size={15} /></button>}</div>
       {safeHref(decision.url) ? <a className="url-block" href={safeHref(decision.url)} target="_blank" rel="noreferrer">{decision.url}<ArrowUpRight size={17} /></a> : <div className="url-block"><span>{decision.url}</span><span className="target-unresolved">Malformed URL</span></div>}
       <section className="proposal-panel"><p className="eyebrow">Proposed recommendation</p><h3>{decision.proposedAction || 'Classification required'}</h3>{decision.proposedTarget ? <a href={safeHref(decision.proposedTarget)} target="_blank" rel="noreferrer" className="proposed-target">{decision.proposedTarget}<ArrowUpRight size={14} /></a> : <p className="muted small">Destination still to be confirmed.</p>}{decision.rationale && <p>{decision.rationale}</p>}</section>
       {decision.question && <section className="question-note"><Info size={21} /><div><h3>Client confirmation needed</h3><p>{decision.question}</p></div></section>}
       {decision.dependency && <section className="detail-section"><h3>Before implementation</h3><p className="small">{decision.dependency}</p></section>}
       {(decision.observedStatus || decision.observedTarget) && <div className="observation"><span>Observed response</span><strong>{decision.observedStatus || 'See source evidence'}</strong>{decision.observedTarget && <span className="break-text">{decision.observedTarget}</span>}{decision.checkedAt && <small>Checked {formatDate(decision.checkedAt, true)}</small>}</div>}
-      <section className="detail-section"><h3>Recorded decision</h3><p className="muted small">A recommendation is not an approval. Record the client’s decision and supporting evidence here.</p>{!canEdit && <ReadOnlyNote onLogin={onLogin} />}
-        {stale && <div className="stale-note" role="status"><Info size={18} /><div><strong>This decision has a newer update.</strong><p>Reload it before saving. Reloading replaces your unsaved form changes.</p><button type="button" className="inline-button" disabled={busy} onClick={() => { setDraft(fields(decision)); setBaselineRevision(decision.revision); setError(''); }}>Reload latest version</button></div></div>}
+      <section className="detail-section decision-editor"><h3>Edit decision</h3><p className="muted small">Choose an approval status and migration action, then select Save decision to record the update.</p>{!canEdit && <ReadOnlyNote onLogin={onLogin} />}
+        {hasChanges && <p className="draft-notice" role="status">Unsaved changes · The shared record updates when you save.</p>}
+        {stale && <div className="stale-note" role="status"><Info size={18} /><div><strong>This decision has a newer update.</strong><p>Reload it before saving. Reloading replaces your unsaved form changes.</p><button type="button" className="inline-button" disabled={busy} onClick={() => { const latest = fields(decision); setDraft(latest); setSavedFields(latest); setBaselineRevision(decision.revision); setError(''); }}>Reload latest version</button></div></div>}
         <form className="form-stack" onSubmit={submit}>
           <fieldset disabled={!canEdit || busy || stale} className="form-stack">
-            <div className="form-grid"><Field label="Approval status"><select value={draft.approvalStatus} onChange={e => setDraft({ ...draft, approvalStatus: e.target.value as DecisionFields['approvalStatus'] })}>{['Not approved', 'Needs discussion', 'Approved', 'Rejected'].map(s => <option key={s}>{s}</option>)}</select></Field><Field label="Approved action"><select value={draft.approvedAction} onChange={e => setDraft({ ...draft, approvedAction: e.target.value as DecisionFields['approvedAction'] })} required={isApproved}><option value="">Select an action</option>{['Retain', 'Redirect', 'Retire (410)', 'External service', 'Fix link', 'Hold'].map(s => <option key={s}>{s}</option>)}</select></Field></div>
-            <Field label="Approved destination" hint={draft.approvedAction === 'Retire (410)' ? 'Leave blank when retiring with a 410 response.' : draft.approvedAction === 'Retain' ? 'For Retain, use the exact current URL shown above.' : 'A complete HTTPS URL. Leave blank until a destination is agreed.'}><input type="url" value={draft.approvedTarget} onChange={e => setDraft({ ...draft, approvedTarget: e.target.value })} placeholder="https://www.postalytics.com/…" required={isApproved && targetRequired} maxLength={2048} /></Field>
-            <div className="form-grid"><Field label="Approved by"><input value={draft.approver} onChange={e => setDraft({ ...draft, approver: e.target.value })} placeholder="Name of the client approver" required={isApproved} maxLength={120} /></Field><Field label="Approval date"><input type="date" max={new Date().toISOString().slice(0, 10)} value={draft.approvalDate} onChange={e => setDraft({ ...draft, approvalDate: e.target.value })} required={isApproved} /></Field></div>
+            <div className="form-grid"><Field label="Approval status" hint={APPROVAL_HELP[draft.approvalStatus]}><select ref={approvalField} value={draft.approvalStatus} onChange={e => chooseStatus(e.target.value as DecisionFields['approvalStatus'])}>{APPROVAL_STATUSES.map(s => <option value={s} key={s}>{s}</option>)}</select></Field><Field label="Approved action" hint={draft.approvedAction === 'Hold' ? 'Hold is a working action. Choose a final treatment before marking the URL Approved.' : draft.approvedAction === 'Redirect' ? 'Use for URL changes and consolidation into another relevant page.' : undefined}><select value={draft.approvedAction} onChange={e => setDraft(previous => ({ ...previous, approvedAction: e.target.value as DecisionFields['approvedAction'], conditionsConfirmed: false }))} required={isApproved}>{Object.entries(DECISION_ACTION_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field></div>
+            <Field label="Approved destination" hint={draft.approvedAction === 'Retire (410)' ? 'Leave blank when retiring with a 410 response.' : draft.approvedAction === 'Retain' ? 'For Retain, use the exact current URL shown above.' : 'A complete HTTPS URL. Leave blank until a destination is agreed.'}><input type="url" value={draft.approvedTarget} onChange={e => chooseTarget(e.target.value)} placeholder="https://www.postalytics.com/…" required={isApproved && targetRequired} maxLength={2048} /></Field>
+            {draft.approvedAction !== 'Retire (410)' && <div className="destination-shortcuts">{draft.approvedAction === 'Retain' && /^https:\/\//i.test(decision.url) && <button type="button" className="text-link" onClick={() => chooseTarget(decision.url)}>Use current URL<ArrowUpRight size={14} /></button>}{draft.approvedAction !== 'Retain' && /^https:\/\//i.test(decision.proposedTarget) && <button type="button" className="text-link" onClick={() => chooseTarget(decision.proposedTarget)}>Use proposed destination<ArrowUpRight size={14} /></button>}</div>}
+            <div className="form-grid"><Field label="Approved by"><input value={draft.approver} onChange={e => setDraft({ ...draft, approver: e.target.value })} placeholder="Name of the client approver" required={isApproved} maxLength={120} /></Field><Field label="Approval date"><input type="date" max={londonDate()} value={draft.approvalDate} onChange={e => setDraft({ ...draft, approvalDate: e.target.value })} required={isApproved} /></Field></div>
             <Field label="Approval evidence" hint="Link to an approval, or record the meeting, date and decision."><textarea rows={3} value={draft.evidence} onChange={e => setDraft({ ...draft, evidence: e.target.value })} required={isApproved} minLength={isApproved ? 10 : undefined} maxLength={4000} placeholder="Where was this decision confirmed?" /></Field>
             <Field label="Working notes"><textarea rows={3} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} maxLength={6000} placeholder="Context, open questions, or implementation notes" /></Field>
             <label className="checklist-item approval-confirm"><input type="checkbox" checked={draft.conditionsConfirmed} onChange={e => setDraft({ ...draft, conditionsConfirmed: e.target.checked })} required={isApproved} /><span>The page intent, client question, and implementation dependencies have been checked for this decision.</span></label>
           </fieldset>
           {error && <p className="form-error" role="alert"><WarningCircle size={17} />{error}</p>}
-          {canEdit && <div className="form-actions"><span className="fine-print">{decision.updatedAt ? `Last recorded ${formatDate(decision.updatedAt, true)}` : 'Original workbook: no approval recorded.'}</span><SaveButton busy={busy} disabled={stale}>Save decision</SaveButton></div>}
+          {canEdit && <div className="form-actions decision-save-actions"><span className="fine-print">{decision.updatedAt ? `Last recorded ${formatDate(decision.updatedAt, true)}` : 'No approval recorded yet.'}</span><div><button type="button" className="button button-ghost" disabled={busy} onClick={onClose}>Cancel</button><SaveButton busy={busy} disabled={stale || !hasChanges}>Save decision</SaveButton></div></div>}
         </form>
       </section>
       {(decision.source || decision.sourceUrl) && <section className="detail-section source-section"><h3>Source reference</h3>{decision.source && <p className="muted small break-text">{decision.source}</p>}{decision.sourceUrl && <SourceLinks links={[{ label: 'Open source', url: decision.sourceUrl }]} />}</section>}

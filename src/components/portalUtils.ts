@@ -5,10 +5,35 @@ export const STATUS_LABELS = {
 } as const;
 export const STATUSES = ['todo', 'in_progress', 'blocked', 'review', 'done'] as const;
 export const PRIORITY_LABELS = { high: 'High', medium: 'Medium', low: 'Low' } as const;
+export const APPROVAL_STATUSES = ['Not approved', 'Needs discussion', 'Approved', 'Rejected'] as const;
+export const APPROVAL_HELP: Record<DecisionFields['approvalStatus'], string> = {
+  'Not approved': 'No final approval has been recorded for this URL.',
+  'Needs discussion': 'A question or dependency needs to be resolved before a final decision.',
+  Approved: 'Record the agreed action and destination, who approved them, and the supporting evidence.',
+  Rejected: 'The proposed treatment has not been accepted. Use the working notes to explain the next step.',
+};
+export const DECISION_ACTION_LABELS: Record<DecisionFields['approvedAction'], string> = {
+  '': 'Select an action', Retain: 'Retain at the same URL', Redirect: 'Redirect / consolidate',
+  'Retire (410)': 'Retire (410)', 'External service': 'Keep external service', 'Fix link': 'Correct a link', Hold: 'Hold for further review',
+};
 export const DECISION_DEFAULTS: DecisionFields = {
   approvalStatus: 'Not approved', approvedAction: '', approvedTarget: '', approver: '',
   approvalDate: '', evidence: '', notes: '', conditionsConfirmed: false,
 };
+export function londonDate(value = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value);
+  return ['year', 'month', 'day'].map(part => parts.find(item => item.type === part)?.value).join('-');
+}
+export function decisionPresentation(decision: Decision) {
+  const approved = decision.approvalStatus === 'Approved';
+  return {
+    approved,
+    action: approved ? decision.approvedAction : decision.proposedAction,
+    target: approved ? decision.approvedTarget : decision.proposedTarget,
+    retired: approved && decision.approvedAction === 'Retire (410)',
+    targetToConfirm: decision.isPage && !approved && !decision.proposedTarget,
+  };
+}
 export function formatDate(value?: string | null, withTime = false): string {
   if (!value) return 'Not set';
   const date = new Date(value.length === 10 ? value + 'T12:00:00Z' : value);
