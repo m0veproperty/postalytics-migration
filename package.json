@@ -1,0 +1,27 @@
+{
+  "name": "postalytics-migration",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "node tests/backend.test.ts"
+  },
+  "engines": { "node": "24.x" },
+  "dependencies": {
+    "@phosphor-icons/react": "2.1.10",
+    "@vercel/blob": "2.8.2",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.3"
+  }
+}

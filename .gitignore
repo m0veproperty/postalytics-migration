@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+*.tsbuildinfo
+coverage/
+test-results/
+playwright-report/
+.DS_Store
+private-content/
+src/data/
+public/data/
+public/assets/
