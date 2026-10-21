@@ -1,4 +1,4 @@
-import { assertSameOrigin, authConfig, createSession, passwordMatches, READ_ONLY_SESSION, requestSession, sessionCookie } from '@/lib/migration/auth';
+import { assertSameOrigin, authConfig, createSession, pinMatches, READ_ONLY_SESSION, requestSession, sessionCookie } from '@/lib/migration/auth';
 import { getStore, storageConfigured } from '@/lib/migration/blob-store';
 import { WorkspaceError } from '@/lib/migration/errors';
 import { errorResponse, jsonResponse, readJson } from '@/lib/migration/http';
@@ -20,8 +20,8 @@ export async function POST(request: Request): Promise<Response> {
     if (!config || !storageConfigured()) throw new WorkspaceError(503, 'EDITING_NOT_CONFIGURED', 'Shared editing has not been configured yet.');
     const login = validateLogin(await readJson(request, 3000));
     await consumeLoginAttempt(getStore(), requestIp(request), config.secret);
-    if (!passwordMatches(login.passphrase, config.password)) throw new WorkspaceError(401, 'INCORRECT_PASSPHRASE', 'The workspace passphrase is incorrect.');
-    const { token, session } = createSession(login.name, config);
+    if (!pinMatches(login.pin, config.pin)) throw new WorkspaceError(401, 'INCORRECT_PIN', 'The workspace PIN is incorrect.');
+    const { token, session } = createSession(login.profileId, config);
     return jsonResponse({ session }, 200, { 'Set-Cookie': sessionCookie(token, config) });
   } catch (error) { return errorResponse(error); }
 }

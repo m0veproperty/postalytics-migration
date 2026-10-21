@@ -1,4 +1,6 @@
-/** Public API types. Source snapshots are kept in src/data and are never edited. */
+import type { ProfileId } from './profiles.ts';
+
+/** Public API types. Source snapshots remain immutable in private storage. */
 export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
 export type Priority = 'high' | 'medium' | 'low';
 export type ApprovalStatus = 'Not approved' | 'Needs discussion' | 'Approved' | 'Rejected';
@@ -50,10 +52,13 @@ export interface DecisionFields {
   approvedTarget: string;
   approver: string;
   approvalDate: string;
+  approvedAt: string;
   evidence: string;
   notes: string;
   conditionsConfirmed: boolean;
 }
+
+export type DecisionPatch = Partial<Omit<DecisionFields, 'approver' | 'approvalDate' | 'approvedAt'>>;
 
 export interface DecisionOverride extends DecisionFields {
   revision: number;
@@ -76,6 +81,10 @@ export type Mutation =
   | { type: 'task.subtask'; taskId: string; expectedRevision: number; subtaskId: string; done: boolean }
   | { type: 'task.comment'; taskId: string; text: string }
   | { type: 'task.create'; task: NewTask }
+  | { type: 'decision.update'; decisionId: string; expectedRevision: number; patch: DecisionPatch };
+
+/** Stored events also contain server-owned approval stamps and historical fields. */
+export type RecordedMutation = Exclude<Mutation, { type: 'decision.update' }>
   | { type: 'decision.update'; decisionId: string; expectedRevision: number; patch: Partial<DecisionFields> };
 
 export interface AuditEvent {
@@ -83,11 +92,12 @@ export interface AuditEvent {
   revision: number;
   at: string;
   actor: string;
+  actorProfileId?: ProfileId;
   type: Mutation['type'];
   entityType: 'task' | 'decision';
   entityId: string;
   summary: string;
-  mutation: Mutation;
+  mutation: RecordedMutation;
 }
 
 export interface Ledger {
@@ -105,10 +115,14 @@ export interface Projection {
 }
 
 export interface SessionInfo {
+  profileId: ProfileId | null;
   canEdit: boolean;
+  canApprove: boolean;
   name: string | null;
   expiresAt: string | null;
 }
+
+export type SignedInSession = SessionInfo & { profileId: ProfileId; canEdit: true; name: string };
 
 export interface WorkspaceResponse extends Projection {
   schemaVersion: 1;

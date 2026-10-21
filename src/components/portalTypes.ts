@@ -1,3 +1,5 @@
+import type { ProfileId } from '../lib/migration/profiles';
+
 export type Status = 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
 export type Priority = 'high' | 'medium' | 'low';
 export type Section = 'overview' | 'actions' | 'decisions' | 'documents' | 'milestones' | 'activity';
@@ -37,7 +39,7 @@ export type TaskOverride = Partial<Omit<Task, 'id' | 'subtasks'>> & {
 export type DecisionFields = {
   approvalStatus: 'Not approved' | 'Needs discussion' | 'Approved' | 'Rejected';
   approvedAction: '' | 'Retain' | 'Redirect' | 'Retire (410)' | 'External service' | 'Fix link' | 'Hold';
-  approvedTarget: string; approver: string; approvalDate: string; evidence: string;
+  approvedTarget: string; approver: string; approvalDate: string; approvedAt: string; evidence: string;
   notes: string; conditionsConfirmed: boolean;
 };
 export type DecisionOverride = DecisionFields & { revision: number; updatedAt: string; updatedBy: string };
@@ -57,7 +59,7 @@ export type WorkspaceState = {
   schemaVersion: number; revision: number; taskOverrides: Record<string, TaskOverride>;
   customTasks: Task[]; decisionOverrides: Record<string, DecisionOverride>; activity: AuditEvent[];
   activityTotal?: number;
-  session: { canEdit: boolean; name: string | null; expiresAt: string | null };
+  session: { profileId: ProfileId | null; canEdit: boolean; canApprove: boolean; name: string | null; expiresAt: string | null };
   persistence: { configured: boolean; mode: 'shared'; message?: string };
 };
 export type Mutation = Record<string, unknown>;

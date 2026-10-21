@@ -1,12 +1,14 @@
 import { WorkspaceError } from './errors.ts';
-import type { DecisionFields, Mutation, NewTask, TaskPatch } from './types.ts';
+import type { DecisionFields, DecisionPatch, Mutation, NewTask, TaskPatch } from './types.ts';
+import { getWorkspaceProfile } from './profiles.ts';
+import type { ProfileId } from './profiles.ts';
 
 const statuses = ['todo', 'in_progress', 'blocked', 'review', 'done'] as const;
 const priorities = ['high', 'medium', 'low'] as const;
 const approvalStatuses = ['Not approved', 'Needs discussion', 'Approved', 'Rejected'] as const;
 const actions = ['', 'Retain', 'Redirect', 'Retire (410)', 'External service', 'Fix link', 'Hold'] as const;
 const taskKeys = ['title', 'description', 'status', 'priority', 'owner', 'dueDate'];
-const decisionKeys = ['approvalStatus', 'approvedAction', 'approvedTarget', 'approver', 'approvalDate', 'evidence', 'notes', 'conditionsConfirmed'];
+const decisionKeys = ['approvalStatus', 'approvedAction', 'approvedTarget', 'evidence', 'notes', 'conditionsConfirmed'];
 
 function invalid(message: string): never {
   throw new WorkspaceError(400, 'INVALID_INPUT', message);
@@ -70,15 +72,13 @@ function taskPatch(value: unknown): TaskPatch {
   return patch;
 }
 
-function decisionPatch(value: unknown): Partial<DecisionFields> {
+function decisionPatch(value: unknown): DecisionPatch {
   const record = object(value, decisionKeys, 'Decision patch');
   if (!Object.keys(record).length) invalid('Choose a decision field to update.');
-  const patch: Partial<DecisionFields> = {};
+  const patch: DecisionPatch = {};
   if ('approvalStatus' in record) patch.approvalStatus = choice(record.approvalStatus, approvalStatuses, 'Approval status');
   if ('approvedAction' in record) patch.approvedAction = choice(record.approvedAction, actions, 'Approved action');
   if ('approvedTarget' in record) patch.approvedTarget = text(record.approvedTarget, 'Approved destination', 2048);
-  if ('approver' in record) patch.approver = text(record.approver, 'Approver', 120);
-  if ('approvalDate' in record) patch.approvalDate = date(record.approvalDate, 'Approval date', true);
   if ('evidence' in record) patch.evidence = text(record.evidence, 'Approval evidence', 4000);
   if ('notes' in record) patch.notes = text(record.notes, 'Notes', 6000);
   if ('conditionsConfirmed' in record) patch.conditionsConfirmed = boolean(record.conditionsConfirmed, 'Conditions confirmation');
@@ -128,26 +128,21 @@ export function validateMutation(value: unknown): Mutation {
   }
 }
 
-export function validateLogin(value: unknown): { passphrase: string; name: string } {
-  const body = object(value, ['passphrase', 'name']);
-  // Passwords are deliberately not normalized or returned in error details.
-  if (typeof body.passphrase !== 'string' || body.passphrase.length < 1 || body.passphrase.length > 512) invalid('Enter the workspace passphrase.');
-  return { passphrase: body.passphrase, name: text(body.name, 'Your name', 100, 2) };
+export function validateLogin(value: unknown): { profileId: ProfileId; pin: string } {
+  const body = object(value, ['profileId', 'pin']);
+  const profile = getWorkspaceProfile(body.profileId);
+  if (!profile) invalid('Choose one of the workspace profiles.');
+  if (typeof body.pin !== 'string' || !/^\d{6}$/.test(body.pin)) invalid('Enter the six-digit workspace PIN.');
+  return { profileId: profile.id, pin: body.pin };
 }
 
-export function validateApproval(fields: DecisionFields, sourceUrl: string, now: string): void {
+export function validateApproval(fields: DecisionFields, sourceUrl: string): void {
   if (fields.approvedTarget) {
     let target: URL;
     try { target = new URL(fields.approvedTarget); } catch { return invalid('The approved destination must be a complete URL.'); }
     if (target.protocol !== 'https:' || target.username || target.password) invalid('Use an HTTPS destination without embedded credentials.');
   }
   if (fields.approvalStatus !== 'Approved') return;
-  if (!fields.approver.trim() || !fields.approvalDate || fields.evidence.trim().length < 10 || !fields.conditionsConfirmed) {
-    invalid('Approval requires a named approver, approval date, evidence (at least 10 characters), and confirmation that the stated conditions are met.');
-  }
-  const calendarParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(now));
-  const currentDate = ['year', 'month', 'day'].map((part) => calendarParts.find((item) => item.type === part)?.value).join('-');
-  if (fields.approvalDate > currentDate) invalid('Approval cannot be recorded for a future date.');
   if (!fields.approvedAction || fields.approvedAction === 'Hold') invalid('Choose a final migration action before marking this URL Approved.');
   if (fields.approvedAction === 'Retire (410)') {
     if (fields.approvedTarget) invalid('A 410 retirement must have an empty destination.');
@@ -155,7 +150,8 @@ export function validateApproval(fields: DecisionFields, sourceUrl: string, now:
   }
   if (!fields.approvedTarget) invalid('This action requires an approved destination.');
   if (fields.approvedAction === 'Retain' && fields.approvedTarget !== sourceUrl) invalid('Retain must use the exact source URL. Use Redirect if the URL changes.');
-  if (['Redirect', 'Fix link'].includes(fields.approvedAction)) {
+  if (fields.approvedAction === 'Fix link' && fields.approvedTarget === sourceUrl) invalid('A link correction must change the source URL spelling.');
+  if (fields.approvedAction === 'Redirect') {
     const target = new URL(fields.approvedTarget);
     target.hash = '';
     let sourceRequest = sourceUrl;

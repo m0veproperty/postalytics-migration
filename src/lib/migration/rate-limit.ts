@@ -16,7 +16,7 @@ export async function consumeLoginAttempt(store: AtomicDocumentStore, ip: string
     const count = sameWindow && Number.isSafeInteger(record?.count) ? record!.count! : 0;
     if (count >= MAX_ATTEMPTS) {
       const retryAfterSeconds = Math.max(1, Math.ceil((record!.startedAt! + WINDOW_MS - now) / 1000));
-      throw new WorkspaceError(429, 'LOGIN_RATE_LIMIT', 'Too many edit sign-in attempts. Please wait before trying again.', { retryAfterSeconds });
+      throw new WorkspaceError(429, 'LOGIN_RATE_LIMIT', 'Too many sign-in attempts. Please wait before trying again.', { retryAfterSeconds });
     }
     return { startedAt: sameWindow ? record!.startedAt : now, count: count + 1 };
   });

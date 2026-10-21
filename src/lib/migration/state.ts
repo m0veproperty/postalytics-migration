@@ -1,10 +1,12 @@
 import { WorkspaceError } from './errors.ts';
-import { validateApproval } from './validation.ts';
-import type { AuditEvent, DecisionFields, Ledger, Mutation, Projection, SeedData, Task, TaskOverride } from './types.ts';
+import { validateApproval, validateMutation } from './validation.ts';
+import { getWorkspaceProfile } from './profiles.ts';
+import type { ProfileId } from './profiles.ts';
+import type { AuditEvent, DecisionFields, Ledger, Mutation, Projection, RecordedMutation, SeedData, Task, TaskOverride } from './types.ts';
 
 export const EMPTY_DECISION: DecisionFields = {
   approvalStatus: 'Not approved', approvedAction: '', approvedTarget: '', approver: '',
-  approvalDate: '', evidence: '', notes: '', conditionsConfirmed: false,
+  approvalDate: '', approvedAt: '', evidence: '', notes: '', conditionsConfirmed: false,
 };
 
 export function emptyLedger(now = new Date().toISOString()): Ledger {
@@ -55,12 +57,18 @@ function assertRevision(actual: number, expected: number): void {
 export function appendMutation(
   ledger: Ledger,
   mutation: Mutation,
-  actor: string,
+  actorProfileId: ProfileId,
   seeds: SeedData,
   context: { now: string; eventId: string; newTaskId: string },
 ): Ledger {
+  const profile = getWorkspaceProfile(actorProfileId);
+  if (!profile) throw new WorkspaceError(401, 'EDIT_SESSION_REQUIRED', 'Sign in with a workspace profile before making changes.');
+  // Validate new actions only. Historical events are replayed without new role or
+  // input rules, so existing approvals and their original evidence remain intact.
+  mutation = validateMutation(mutation);
   if (ledger.events.length >= 20_000) throw new WorkspaceError(503, 'AUDIT_CAPACITY', 'The workspace audit archive needs maintenance before more changes can be saved. Existing records remain available.');
   const projection = projectLedger(ledger);
+  let recordedMutation: RecordedMutation = mutation;
   let entityId: string;
   let entityType: 'task' | 'decision' = 'task';
   let summary: string;
@@ -69,11 +77,30 @@ export function appendMutation(
     if (!seed) throw new WorkspaceError(404, 'UNKNOWN_DECISION', 'This URL is not in the source decision register.');
     const previous = projection.decisionOverrides[mutation.decisionId];
     assertRevision(previous?.revision ?? 0, mutation.expectedRevision);
+    if (!profile.canApprove) {
+      if (mutation.patch.approvalStatus === 'Approved') throw new WorkspaceError(403, 'APPROVAL_ROLE_REQUIRED', 'Only Dennis or Maddy can approve URL decisions.');
+      if (previous?.approvalStatus === 'Approved' && Object.keys(mutation.patch).some((key) => key !== 'notes')) throw new WorkspaceError(403, 'APPROVAL_ROLE_REQUIRED', 'Only Dennis or Maddy can change an approved decision. You can add working notes.');
+    }
     const fields = { ...EMPTY_DECISION, ...previous, ...mutation.patch };
-    validateApproval(fields, seed.url, context.now);
+    validateApproval(fields, seed.url);
+    const recordsApproval = fields.approvalStatus === 'Approved' && (
+      previous?.approvalStatus !== 'Approved'
+      || fields.approvedAction !== previous.approvedAction
+      || fields.approvedTarget !== previous.approvedTarget
+    );
+    if (recordsApproval) {
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(context.now));
+      const approvalDate = ['year', 'month', 'day'].map((part) => parts.find((item) => item.type === part)?.value).join('-');
+      recordedMutation = {
+        ...mutation,
+        patch: { ...mutation.patch, approver: profile.name, approvalDate, approvedAt: context.now },
+      };
+    }
     entityId = mutation.decisionId;
     entityType = 'decision';
-    summary = fields.approvalStatus === 'Approved' ? `Recorded approval for ${seed.url}` : `Updated URL review for ${seed.url}`;
+    summary = recordsApproval ? `Recorded approval for ${seed.url}`
+      : previous?.approvalStatus === 'Approved' && fields.approvalStatus !== 'Approved' ? `Changed approval status to ${fields.approvalStatus} for ${seed.url}`
+      : `Updated URL review for ${seed.url}`;
   } else if (mutation.type === 'task.create') {
     if (!seeds.workstreamIds.includes(mutation.task.workstreamId)) throw new WorkspaceError(400, 'UNKNOWN_WORKSTREAM', 'Choose an existing workstream for this action.');
     if (projection.customTasks.length >= 2000) throw new WorkspaceError(400, 'TASK_LIMIT', 'The workspace has reached its additional action limit.');
@@ -97,8 +124,8 @@ export function appendMutation(
     }
   }
   const event: AuditEvent = {
-    id: context.eventId, revision: ledger.revision + 1, at: context.now, actor,
-    type: mutation.type, entityType, entityId, summary, mutation,
+    id: context.eventId, revision: ledger.revision + 1, at: context.now, actor: profile.name, actorProfileId: profile.id,
+    type: mutation.type, entityType, entityId, summary, mutation: recordedMutation,
   };
   return { ...ledger, revision: event.revision, events: [...ledger.events, event] };
 }

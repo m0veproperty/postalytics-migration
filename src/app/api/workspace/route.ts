@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
     assertSameOrigin(request);
     const session = requireEditor(request);
     const mutation = validateMutation(await readJson(request));
-    const ledger = await saveMutation(getStore(), await getSeedData(), mutation, session.name);
+    const ledger = await saveMutation(getStore(), await getSeedData(), mutation, session.profileId);
     return jsonResponse(workspaceResponse(ledger, session, true));
   } catch (error) { return errorResponse(error); }
 }

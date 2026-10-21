@@ -3,6 +3,7 @@ import { updateDocument } from './atomic-store.ts';
 import type { AtomicDocumentStore } from './atomic-store.ts';
 import { appendMutation, assertLedger, emptyLedger, projectLedger } from './state.ts';
 import type { Ledger, Mutation, SeedData, SessionInfo, WorkspaceResponse } from './types.ts';
+import type { ProfileId } from './profiles.ts';
 
 export const LEDGER_PATH = 'postalytics-migration/workspace-v1.json';
 
@@ -11,14 +12,14 @@ export async function readWorkspace(store: AtomicDocumentStore): Promise<Ledger>
   return record ? assertLedger(record.value) : emptyLedger();
 }
 
-export async function saveMutation(store: AtomicDocumentStore, seeds: SeedData, mutation: Mutation, actor: string): Promise<Ledger> {
+export async function saveMutation(store: AtomicDocumentStore, seeds: SeedData, mutation: Mutation, actorProfileId: ProfileId): Promise<Ledger> {
   const context = { now: new Date().toISOString(), eventId: randomUUID(), newTaskId: `custom-${randomUUID()}` };
   return updateDocument(store, LEDGER_PATH, (previous) => {
     const ledger = previous ? assertLedger(previous) : emptyLedger(context.now);
     // If an initial put succeeded but its acknowledgement was lost, retrying this
     // server request must not duplicate the event.
     if (ledger.events.some((event) => event.id === context.eventId)) return ledger;
-    return appendMutation(ledger, mutation, actor, seeds, context);
+    return appendMutation(ledger, mutation, actorProfileId, seeds, context);
   });
 }
 

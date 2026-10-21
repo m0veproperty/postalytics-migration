@@ -9,7 +9,7 @@ export const APPROVAL_STATUSES = ['Not approved', 'Needs discussion', 'Approved'
 export const APPROVAL_HELP: Record<DecisionFields['approvalStatus'], string> = {
   'Not approved': 'No final approval has been recorded for this URL.',
   'Needs discussion': 'A question or dependency needs to be resolved before a final decision.',
-  Approved: 'Record the agreed action and destination, who approved them, and the supporting evidence.',
+  Approved: 'Confirm the action and destination. Your name and the approval time are recorded automatically.',
   Rejected: 'The proposed treatment has not been accepted. Use the working notes to explain the next step.',
 };
 export const DECISION_ACTION_LABELS: Record<DecisionFields['approvedAction'], string> = {
@@ -18,7 +18,7 @@ export const DECISION_ACTION_LABELS: Record<DecisionFields['approvedAction'], st
 };
 export const DECISION_DEFAULTS: DecisionFields = {
   approvalStatus: 'Not approved', approvedAction: '', approvedTarget: '', approver: '',
-  approvalDate: '', evidence: '', notes: '', conditionsConfirmed: false,
+  approvalDate: '', approvedAt: '', evidence: '', notes: '', conditionsConfirmed: false,
 };
 export function londonDate(value = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(value);

@@ -8,12 +8,12 @@ Install `@vercel/blob` 2.8.2 or later. This backend uses private storage, consis
 
 Required Vercel environment variables:
 
-- `MIGRATION_EDIT_PASSWORD`: generated workspace passphrase, at least 16 characters.
+- `MIGRATION_ACCESS_PIN`: the shared workspace access PIN, exactly six digits. Set it only in private environment configuration; it has no code default.
 - `MIGRATION_SESSION_SECRET`: separately generated random secret, at least 32 characters.
 - `BLOB_READ_WRITE_TOKEN`: automatically supplied by the connected private Blob store. The SDK receives this explicitly when present.
 - Alternatively, use `BLOB_STORE_ID` with the Vercel runtime's OIDC credentials when a read-write token is unavailable.
 
-Do not prefix these variables with `NEXT_PUBLIC_`, commit them, or put them in client code. Rotating either the passphrase or session secret invalidates existing signed sessions.
+Do not prefix these variables with `NEXT_PUBLIC_`, commit them, or put them in client code. Rotating either the PIN or session secret invalidates existing signed sessions. `MIGRATION_EDIT_PASSWORD` is no longer used.
 
 ## Data and concurrency
 
@@ -25,11 +25,17 @@ The application enforces append-only history; a Vercel project administrator wit
 
 ## Editing and approval
 
-Viewers must sign in before any workspace data or assets are returned. `POST /api/session` takes `{ "passphrase": "…", "name": "…" }` and returns a 12-hour signed session through a secure, HTTP-only, same-site cookie. The entered name is recorded as the editor's asserted name; this is shared passphrase access, not a verified account system. Server-side checks reject missing sessions, cross-origin mutations, unknown fields, unknown source IDs, oversized payloads, and invalid dates.
+Viewers must sign in before any workspace data or assets are returned. `POST /api/session` takes `{ "profileId": "amir|tony|dennis|maddy", "pin": "…" }` and returns a 12-hour signed session through a secure, HTTP-only, same-site cookie. The public profile list in `profiles.ts` supplies the canonical names and capabilities. The v2 signed payload contains only a profile ID and session times; the server resolves the current name and permissions on every request. Old v1 name-based sessions are invalid. Session responses contain `profileId`, `canEdit`, `canApprove`, `name`, and `expiresAt`.
 
-Login attempts are durably limited to eight per 15-minute window per network IP. Counters use a secret HMAC of the Vercel-provided IP; raw IP addresses and passphrases are not stored. A small JSON counter is retained per hashed IP and reused in the next window. On a self-hosted reverse proxy, ensure the trusted proxy overwrites `X-Forwarded-For`; the deployed target is Vercel.
+All four profiles share the same PIN. Choosing a profile identifies the session for this workspace; it is not separate account authentication for each person. Amir and Tony can edit tasks and draft URL decisions. Dennis and Maddy can also approve decisions or alter/revoke an existing approval. On an approved URL, Amir and Tony can update working notes only. These rules are enforced when a mutation is appended to the ledger, including after a concurrent-write retry.
 
-URL records start unapproved. Recording approval requires a named approver, an actual non-future date on the Europe/London calendar, evidence, explicit confirmation that conditions are met, a final action, and a valid destination when that action requires one. Redirects cannot target the same request URL. A 410 retirement must leave the destination empty. The application validates completeness and consistency; the reviewer remains responsible for the truth of the supplied approval evidence. Marking an action complete never approves any URL or asserts launch readiness.
+Login attempts are durably limited to eight per 15-minute window per network IP across all profiles. Counters use a secret HMAC of the Vercel-provided IP; raw IP addresses and PINs are not stored. A small JSON counter is retained per hashed IP and reused in the next window. On a self-hosted reverse proxy, ensure the trusted proxy overwrites `X-Forwarded-For`; the deployed target is Vercel.
+
+URL records start unapproved. An explicit Approved save by Dennis or Maddy confirms the supplied final action and destination. A final action and any required HTTPS destination remain mandatory; Hold cannot be Approved. Redirects cannot target the same normalized request URL. A Fix link action can correct different raw URL spellings even when they resolve to the same URL. A 410 retirement must leave its destination empty. Recommendation defaults are displayed in the review form; the server validates the submitted final disposition rather than guessing a missing destination.
+
+The server records the logged-in profile's name as `approver`, the UTC approval timestamp as `approvedAt`, and its Europe/London calendar date as `approvalDate`. These fields are rejected in client mutations. A new approval, reapproval after revocation, or change to an approved action/destination receives a fresh stamp. Notes or evidence changes preserve the original stamp. Revoking an approval preserves its earlier stamp as historical provenance. Evidence is optional. The legacy `conditionsConfirmed` field is retained in projections, but is not required or automatically set by approval.
+
+The existing ledger format stays readable. Historical approval events retain their original actors, fields and evidence; they are not revalidated against the new profiles. New audit events additionally record `actorProfileId`. Marking an action complete never approves any URL or asserts launch readiness.
 
 ## Routes
 
@@ -39,7 +45,7 @@ URL records start unapproved. Recording approval requires a named approver, an a
 - `POST /api/content?name=...`: authenticated initial source upload, described below.
 - `GET /api/workspace`: authenticated current overrides, custom tasks, session information and the latest 200 audit events, newest first. `activityTotal` gives the complete count.
 - `GET /api/workspace?activity=all`: same response with the complete audit history.
-- `POST /api/workspace`: a typed mutation from `types.ts`. Returns the new complete workspace projection.
+- `POST /api/workspace`: a typed mutation from `types.ts`. Decision patches accept status, final action/destination, optional evidence and notes (plus the legacy condition field). They cannot submit an approver or approval time. Returns the new complete workspace projection.
 - `GET /api/session`: current edit session information.
 - `POST /api/session`: sign in; requires JSON and the same-origin browser request.
 - `DELETE /api/session`: sign out; requires the same-origin browser request.
@@ -62,9 +68,9 @@ Run the pure backend checks with Node.js 24:
 node tests/backend.test.ts
 ```
 
-The suite verifies independent and conflicting concurrent saves, persistent custom actions and comments, approval gates, immutable source data, session tampering/expiry, cross-origin rejection, payload limits, durable login throttling and local persistence across server instances.
+The suite verifies independent and conflicting concurrent saves, persistent custom actions and comments, profile permissions, automatic approval stamps and stamp preservation, forged-field rejection, historical-event compatibility, session version/role/tampering/expiry checks, immutable source data, cross-origin rejection, payload limits, durable login throttling and local persistence across server instances. Test PINs and secrets are generated at runtime; the live PIN never appears in tests.
 
-For a local development server only, explicitly set `MIGRATION_LOCAL_STORE_DIR` to a disposable directory and set the two edit credentials. This uses local files with conditional writes and atomic renames so UI interactions can be exercised without touching production data. If `NODE_ENV=production`, setting this variable fails closed; local storage never silently replaces Blob in production. Exclude the chosen directory from Git.
+For a local development server only, explicitly set `MIGRATION_LOCAL_STORE_DIR` to a disposable directory and set `MIGRATION_ACCESS_PIN` and `MIGRATION_SESSION_SECRET`. This uses local files with conditional writes and atomic renames so UI interactions can be exercised without touching production data. If `NODE_ENV=production`, setting this variable fails closed; local storage never silently replaces Blob in production. Exclude the chosen directory from Git.
 
 After deployment, verify a real shared write and read through a second session. Use an actual implementation-verification action and record the check honestly instead of inventing a client approval for a smoke test.
 

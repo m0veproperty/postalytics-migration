@@ -1,34 +1,38 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import type { SessionInfo } from './types.ts';
+import type { SessionInfo, SignedInSession } from './types.ts';
 import { WorkspaceError } from './errors.ts';
+import { getWorkspaceProfile } from './profiles.ts';
+import type { ProfileId } from './profiles.ts';
 
-export interface AuthConfig { password: string; secret: string; secure: boolean }
+export interface AuthConfig { pin: string; secret: string; secure: boolean }
 export const SESSION_TTL_SECONDS = 12 * 60 * 60;
-export const READ_ONLY_SESSION: SessionInfo = { canEdit: false, name: null, expiresAt: null };
+export const READ_ONLY_SESSION: SessionInfo = { profileId: null, canEdit: false, canApprove: false, name: null, expiresAt: null };
 
 export function authConfig(): AuthConfig | null {
-  const password = process.env.MIGRATION_EDIT_PASSWORD;
+  const pin = process.env.MIGRATION_ACCESS_PIN;
   const secret = process.env.MIGRATION_SESSION_SECRET;
-  if (!password || password.length < 16 || !secret || secret.length < 32) return null;
-  return { password, secret, secure: process.env.NODE_ENV === 'production' };
+  if (!pin || !/^\d{6}$/.test(pin) || !secret || secret.length < 32) return null;
+  return { pin, secret, secure: process.env.NODE_ENV === 'production' };
 }
 
-export function passwordMatches(provided: string, expected: string): boolean {
-  // Equal-size digests avoid exposing the configured password length.
+export function pinMatches(provided: string, expected: string): boolean {
+  // Equal-size digests make the comparison independent of the supplied length.
   return timingSafeEqual(createHash('sha256').update(provided).digest(), createHash('sha256').update(expected).digest());
 }
 
 function signature(payload: string, config: AuthConfig): string {
-  // Password rotation also revokes existing sessions.
-  const key = createHmac('sha256', config.secret).update(`session-key:${config.password}`).digest();
+  // PIN rotation also revokes sessions. A new signing domain separates v2 from v1.
+  const key = createHmac('sha256', config.secret).update(`session-v2:${config.pin}`).digest();
   return createHmac('sha256', key).update(payload).digest('base64url');
 }
 
-export function createSession(name: string, config: AuthConfig, now = Date.now()): { token: string; session: SessionInfo } {
+export function createSession(profileId: ProfileId, config: AuthConfig, now = Date.now()): { token: string; session: SignedInSession } {
+  const profile = getWorkspaceProfile(profileId);
+  if (!profile) throw new WorkspaceError(400, 'UNKNOWN_PROFILE', 'Choose one of the workspace profiles.');
   const iat = Math.floor(now / 1000);
   const exp = iat + SESSION_TTL_SECONDS;
-  const encoded = Buffer.from(JSON.stringify({ v: 1, name, iat, exp })).toString('base64url');
-  return { token: `${encoded}.${signature(encoded, config)}`, session: { canEdit: true, name, expiresAt: new Date(exp * 1000).toISOString() } };
+  const encoded = Buffer.from(JSON.stringify({ v: 2, profileId: profile.id, iat, exp })).toString('base64url');
+  return { token: `${encoded}.${signature(encoded, config)}`, session: { profileId: profile.id, canEdit: true, canApprove: profile.canApprove, name: profile.name, expiresAt: new Date(exp * 1000).toISOString() } };
 }
 
 export function verifySession(token: string | undefined, config: AuthConfig | null, now = Date.now()): SessionInfo {
@@ -40,8 +44,10 @@ export function verifySession(token: string | undefined, config: AuthConfig | nu
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     const seconds = Math.floor(now / 1000);
-    if (data.v !== 1 || typeof data.name !== 'string' || data.name.length < 2 || data.name.length > 100 || !Number.isSafeInteger(data.iat) || !Number.isSafeInteger(data.exp) || data.exp <= seconds || data.iat > seconds + 60 || data.exp - data.iat !== SESSION_TTL_SECONDS) return READ_ONLY_SESSION;
-    return { canEdit: true, name: data.name, expiresAt: new Date(data.exp * 1000).toISOString() };
+    const profile = getWorkspaceProfile(data?.profileId);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || Object.keys(data).some((key) => !['v', 'profileId', 'iat', 'exp'].includes(key)) || data.v !== 2 || !profile || !Number.isSafeInteger(data.iat) || !Number.isSafeInteger(data.exp) || data.exp <= seconds || data.iat > seconds + 60 || data.exp - data.iat !== SESSION_TTL_SECONDS) return READ_ONLY_SESSION;
+    // Names and capabilities are resolved from the current server profile list.
+    return { profileId: profile.id, canEdit: true, canApprove: profile.canApprove, name: profile.name, expiresAt: new Date(data.exp * 1000).toISOString() };
   } catch { return READ_ONLY_SESSION; }
 }
 
@@ -59,10 +65,10 @@ export function requestSession(request: Request, config: AuthConfig | null = aut
   return verifySession(cookie?.slice(name.length + 1), config);
 }
 
-export function requireEditor(request: Request): SessionInfo & { name: string } {
+export function requireEditor(request: Request): SignedInSession {
   const session = requestSession(request);
-  if (!session.canEdit || !session.name) throw new WorkspaceError(401, 'EDIT_SESSION_REQUIRED', 'Sign in to open the workspace.');
-  return session as SessionInfo & { name: string };
+  if (!session.canEdit || !session.name || !session.profileId) throw new WorkspaceError(401, 'EDIT_SESSION_REQUIRED', 'Sign in to open the workspace.');
+  return session as SignedInSession;
 }
 
 export function assertSameOrigin(request: Request): void {
