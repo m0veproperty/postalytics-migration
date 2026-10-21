@@ -23,7 +23,8 @@ export async function GET(request: Request, context: { params: Promise<{ name: s
       'Referrer-Policy': 'no-referrer',
       Vary: 'Cookie',
     };
-    if (file.size !== null) headers['Content-Length'] = String(file.size);
+    // Private Blob streams may report size 0 when the upstream length is unknown.
+    // Let the runtime frame the stream rather than truncating a nonempty file.
     // Keep report interactivity while denying the document the app's cookie origin.
     if (html) headers['Content-Security-Policy'] = "sandbox allow-scripts allow-downloads allow-popups allow-popups-to-escape-sandbox allow-modals; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https:; font-src data: https:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
     return new Response(file.stream, { headers });
