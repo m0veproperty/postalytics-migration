@@ -2,6 +2,7 @@ import type { ProfileId } from './profiles.ts';
 
 /** Public API types. Source snapshots remain immutable in private storage. */
 export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
+export type TaskPhase = 'prelaunch' | 'postlaunch';
 export type Priority = 'high' | 'medium' | 'low';
 export type ApprovalStatus = 'Not approved' | 'Needs discussion' | 'Approved' | 'Rejected';
 export type ApprovedAction = '' | 'Retain' | 'Redirect' | 'Retire (410)' | 'External service' | 'Fix link' | 'Hold';
@@ -11,6 +12,7 @@ export interface Task {
   title: string;
   description: string;
   workstreamId: string;
+  phase?: TaskPhase;
   status: TaskStatus;
   priority: Priority;
   owner: string;
@@ -33,6 +35,7 @@ export interface TaskPatch {
   title?: string;
   description?: string;
   status?: TaskStatus;
+  phase?: TaskPhase;
   priority?: Priority;
   owner?: string;
   dueDate?: string | null;
@@ -70,6 +73,7 @@ export interface NewTask {
   title: string;
   description: string;
   workstreamId: string;
+  phase?: TaskPhase;
   priority: Priority;
   owner: string;
   dueDate: string | null;

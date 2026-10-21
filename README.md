@@ -5,7 +5,8 @@ A shared workspace for the Postalytics website migration: actions, URL decisions
 ## Application
 
 - **Overview:** completed actions, outstanding decisions, priority work and workstream progress.
-- **Actions:** list and board views, status / owner / workstream filters, editable task details, checklists, comments and new actions.
+- **Prelaunch and Post launch:** separate phase sections with live action counts, completion progress, relevant milestones and list / board views. Existing actions have a default phase based on their place in the migration plan. The phase can be changed in the task editor, and new actions inherit the section they are created in.
+- **All actions:** list and board views, phase / status / owner / workstream filters, editable task details, checklists, comments and new actions.
 - **URL decisions:** searchable recommendations with separate approval fields, exact destinations, dependencies and source evidence.
 - **Documents:** authenticated report previews and downloads, with a clear distinction between dated source files and current workspace records.
 - **Milestones:** delivery gates tied to their underlying actions.

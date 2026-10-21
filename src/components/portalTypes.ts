@@ -1,13 +1,14 @@
 import type { ProfileId } from '../lib/migration/profiles';
+import type { LaunchPhase } from '../lib/migration/phases';
 
 export type Status = 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
 export type Priority = 'high' | 'medium' | 'low';
-export type Section = 'overview' | 'actions' | 'decisions' | 'documents' | 'milestones' | 'activity';
+export type Section = 'overview' | 'prelaunch' | 'postlaunch' | 'actions' | 'decisions' | 'documents' | 'milestones' | 'activity';
 export type SourceLink = { label: string; url: string };
 export type ChecklistItem = { id: string; title: string; done: boolean };
 export type Comment = { id: string; author: string; text: string; createdAt: string };
 export type Task = {
-  id: string; title: string; description: string; workstreamId: string;
+  id: string; title: string; description: string; workstreamId: string; phase?: LaunchPhase;
   status: Status; priority: Priority; owner: string; dueDate: string | null;
   dependencies: string[]; subtasks: ChecklistItem[]; sourceLinks: SourceLink[];
   completionEvidence: string | null; notes: string; sourceStatus: string | null;

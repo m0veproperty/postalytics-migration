@@ -19,6 +19,8 @@ Do not prefix these variables with `NEXT_PUBLIC_`, commit them, or put them in c
 
 The private object `postalytics-migration/workspace-v1.json` contains an ordered event ledger. Current task state, comments, custom actions, and URL decisions are projected from those events. Seed files are never mutated. The API has no delete-history or reset endpoint.
 
+Task creation and updates accept an optional `phase` of `prelaunch` or `postlaunch`. Explicit choices persist in the event ledger and are returned on custom tasks or task overrides. Omitting the field preserves existing behavior: legacy source tasks and events do not gain a stored phase, and updates to other fields preserve any previously chosen phase. The interface determines the display phase for tasks that have no explicit value; the backend does not infer or migrate one.
+
 Each mutation loads the latest object directly from private storage, validates the affected entity, appends an event, and conditionally writes against the observed ETag. Initial creation uses `allowOverwrite: false`. A competing write is re-read and retried up to six times. Changes to different actions merge safely. An outdated revision on the same action or URL returns HTTP 409 instead of silently overwriting someone else's work. Comments append without requiring an entity revision.
 
 The application enforces append-only history; a Vercel project administrator with storage access can still modify or remove the underlying object. This is an operational audit trail, not a tamper-proof compliance system. Export the activity history when a durable project handover is needed. The ledger is capped at 20,000 events or 32 MiB; reaching the cap preserves reads and prevents additional writes until an administrator archives or migrates it. No automatic truncation discards history.
@@ -68,7 +70,7 @@ Run the pure backend checks with Node.js 24:
 node tests/backend.test.ts
 ```
 
-The suite verifies independent and conflicting concurrent saves, persistent custom actions and comments, profile permissions, automatic approval stamps and stamp preservation, forged-field rejection, historical-event compatibility, session version/role/tampering/expiry checks, immutable source data, cross-origin rejection, payload limits, durable login throttling and local persistence across server instances. Test PINs and secrets are generated at runtime; the live PIN never appears in tests.
+The suite verifies independent and conflicting concurrent saves, persistent custom actions, optional task phases and comments, profile permissions, automatic approval stamps and stamp preservation, forged-field rejection, historical-event compatibility, session version/role/tampering/expiry checks, immutable source data, cross-origin rejection, payload limits, durable login throttling and local persistence across server instances. Test PINs and secrets are generated at runtime; the live PIN never appears in tests.
 
 For a local development server only, explicitly set `MIGRATION_LOCAL_STORE_DIR` to a disposable directory and set `MIGRATION_ACCESS_PIN` and `MIGRATION_SESSION_SECRET`. This uses local files with conditional writes and atomic renames so UI interactions can be exercised without touching production data. If `NODE_ENV=production`, setting this variable fails closed; local storage never silently replaces Blob in production. Exclude the chosen directory from Git.
 

@@ -95,6 +95,51 @@ test('new actions persist with real IDs and support subsequent updates', async (
   assert.equal(projectLedger(changed).taskOverrides[task.id].status, 'in_progress');
 });
 
+test('task phases persist on new actions and updates through fresh ledger reads', async () => {
+  const store = new MemoryStore();
+  await saveMutation(store, seeds, validateMutation({ type: 'task.create', task: { title: 'Monitor launched URLs', workstreamId: 'urls', phase: 'postlaunch' } }), 'amir');
+  const created = projectLedger(await readWorkspace(store)).customTasks[0];
+  assert.equal(created.phase, 'postlaunch');
+
+  await saveMutation(store, seeds, validateMutation({ type: 'task.update', taskId: created.id, expectedRevision: 1, patch: { phase: 'prelaunch' } }), 'tony');
+  await saveMutation(store, seeds, validateMutation({ type: 'task.update', taskId: 'task-a', expectedRevision: 0, patch: { phase: 'postlaunch' } }), 'dennis');
+  await saveMutation(store, seeds, validateMutation({ type: 'task.update', taskId: 'task-a', expectedRevision: 1, patch: { owner: 'Postalytics' } }), 'maddy');
+
+  const ledger = await readWorkspace(store);
+  const state = projectLedger(ledger);
+  assert.equal(state.customTasks[0].phase, 'postlaunch');
+  assert.equal(state.taskOverrides[created.id].phase, 'prelaunch');
+  assert.equal(state.taskOverrides['task-a'].phase, 'postlaunch');
+  assert.equal(state.taskOverrides['task-a'].owner, 'Postalytics');
+  assert.equal(Object.hasOwn(seeds.tasks[0], 'phase'), false);
+  assert.equal(ledger.events[0].mutation.type, 'task.create');
+  assert.deepEqual(ledger.events[1].mutation, { type: 'task.update', taskId: created.id, expectedRevision: 1, patch: { phase: 'prelaunch' } });
+});
+
+test('legacy task events and new actions without a phase keep the field absent', async () => {
+  const store = new MemoryStore();
+  await saveMutation(store, seeds, validateMutation({ type: 'task.create', task: { title: 'Review launch checklist', workstreamId: 'urls' } }), 'amir');
+  await saveMutation(store, seeds, validateMutation({ type: 'task.update', taskId: 'task-a', expectedRevision: 0, patch: { status: 'review' } }), 'tony');
+  const ledger = assertLedger(JSON.parse(JSON.stringify(await readWorkspace(store))));
+  const state = projectLedger(ledger);
+  assert.equal(Object.hasOwn(state.customTasks[0], 'phase'), false);
+  assert.equal(Object.hasOwn(state.taskOverrides['task-a'], 'phase'), false);
+  const created = ledger.events[0].mutation;
+  assert.ok(created.type === 'task.create');
+  assert.equal(Object.hasOwn(created.task, 'phase'), false);
+});
+
+test('task creation and updates reject unsupported phase values', () => {
+  for (const phase of ['launch', 'Prelaunch', '', null, false, 1]) {
+    for (const mutation of [
+      { type: 'task.create', task: { title: 'Review launch checklist', workstreamId: 'urls', phase } },
+      { type: 'task.update', taskId: 'task-a', expectedRevision: 0, patch: { phase } },
+    ]) {
+      assert.throws(() => validateMutation(mutation), (error: unknown) => error instanceof WorkspaceError && error.code === 'INVALID_INPUT' && error.message === 'Phase is not supported.');
+    }
+  }
+});
+
 test('approval still requires a final action and a safe destination', async () => {
   const invalidVariants: DecisionPatch[] = [
     { approvedAction: 'Hold' }, { approvedAction: '' }, { approvedTarget: '' },

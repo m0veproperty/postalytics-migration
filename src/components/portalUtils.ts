@@ -1,4 +1,5 @@
 import type { Decision, DecisionFields, ProjectData, Task, WorkspaceState } from './portalTypes';
+import { getTaskPhase } from '../lib/migration/phases';
 
 export const STATUS_LABELS = {
   todo: 'Not started', in_progress: 'In progress', blocked: 'Blocked', review: 'In review', done: 'Complete',
@@ -64,6 +65,7 @@ export function mergeTasks(project: ProjectData, state?: WorkspaceState | null):
     return {
       ...task, dependencies: task.dependencies || [], sourceLinks: task.sourceLinks || [],
       sourceAssignees: task.sourceAssignees || [], ...patch, revision: patch?.revision || task.revision || 0,
+      phase: getTaskPhase({ ...task, ...patch }),
       comments: patch?.comments || task.comments || [],
       subtasks: (task.subtasks || []).map(item => ({ ...item, done: patch?.subtaskState?.[item.id] ?? item.done })),
     };

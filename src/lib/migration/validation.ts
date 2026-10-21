@@ -4,10 +4,11 @@ import { getWorkspaceProfile } from './profiles.ts';
 import type { ProfileId } from './profiles.ts';
 
 const statuses = ['todo', 'in_progress', 'blocked', 'review', 'done'] as const;
+const phases = ['prelaunch', 'postlaunch'] as const;
 const priorities = ['high', 'medium', 'low'] as const;
 const approvalStatuses = ['Not approved', 'Needs discussion', 'Approved', 'Rejected'] as const;
 const actions = ['', 'Retain', 'Redirect', 'Retire (410)', 'External service', 'Fix link', 'Hold'] as const;
-const taskKeys = ['title', 'description', 'status', 'priority', 'owner', 'dueDate'];
+const taskKeys = ['title', 'description', 'status', 'phase', 'priority', 'owner', 'dueDate'];
 const decisionKeys = ['approvalStatus', 'approvedAction', 'approvedTarget', 'evidence', 'notes', 'conditionsConfirmed'];
 
 function invalid(message: string): never {
@@ -66,6 +67,7 @@ function taskPatch(value: unknown): TaskPatch {
   if ('title' in record) patch.title = text(record.title, 'Title', 200, 3);
   if ('description' in record) patch.description = text(record.description, 'Description', 6000);
   if ('status' in record) patch.status = choice(record.status, statuses, 'Status');
+  if ('phase' in record) patch.phase = choice(record.phase, phases, 'Phase');
   if ('priority' in record) patch.priority = choice(record.priority, priorities, 'Priority');
   if ('owner' in record) patch.owner = text(record.owner, 'Owner', 120);
   if ('dueDate' in record) patch.dueDate = record.dueDate === null || record.dueDate === '' ? null : date(record.dueDate, 'Due date');
@@ -86,13 +88,14 @@ function decisionPatch(value: unknown): DecisionPatch {
 }
 
 function newTask(value: unknown): NewTask {
-  const record = object(value, ['title', 'description', 'workstreamId', 'priority', 'owner', 'dueDate', 'subtasks'], 'New task');
+  const record = object(value, ['title', 'description', 'workstreamId', 'phase', 'priority', 'owner', 'dueDate', 'subtasks'], 'New task');
   const subtasks = record.subtasks ?? [];
   if (!Array.isArray(subtasks) || subtasks.length > 30) invalid('A task can have at most 30 checklist items.');
   return {
     title: text(record.title, 'Title', 200, 3),
     description: text(record.description ?? '', 'Description', 6000),
     workstreamId: id(record.workstreamId, 'Workstream'),
+    ...('phase' in record ? { phase: choice(record.phase, phases, 'Phase') } : {}),
     priority: choice(record.priority ?? 'medium', priorities, 'Priority'),
     owner: text(record.owner ?? '', 'Owner', 120),
     dueDate: record.dueDate == null || record.dueDate === '' ? null : date(record.dueDate, 'Due date'),

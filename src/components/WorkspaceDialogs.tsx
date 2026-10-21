@@ -6,6 +6,7 @@ import type { Asset, Decision, DecisionFields, Mutation, Priority, ProjectData, 
 import { APPROVAL_HELP, APPROVAL_STATUSES, DECISION_ACTION_LABELS, formatDate, initials, PRIORITY_LABELS, safeHref, shortUrl, STATUSES, STATUS_LABELS } from './portalUtils';
 import { decisionDraftFields, initialDecisionDraft, recommendationFor, type DecisionDraft } from './decisionRecommendations';
 import { ProfileAccess } from './ProfileAccess';
+import { getTaskPhase, PHASE_LABELS, type LaunchPhase } from '../lib/migration/phases';
 
 type Mutate = (payload: Mutation, message?: string) => Promise<WorkspaceState>;
 
@@ -79,7 +80,7 @@ export function TaskDrawer({ task, tasks, workstreams, canEdit, busy, mutate, on
   task: Task; tasks: Task[]; workstreams: Workstream[]; canEdit: boolean; busy: boolean;
   mutate: Mutate; onClose: () => void; onLogin: () => void; onTask: (id: string) => void;
 }) {
-  const fields = (t: Task) => ({ title: t.title, description: t.description, status: t.status, priority: t.priority, owner: t.owner || '', dueDate: t.dueDate || '' });
+  const fields = (t: Task) => ({ title: t.title, description: t.description, status: t.status, priority: t.priority, phase: getTaskPhase(t), owner: t.owner || '', dueDate: t.dueDate || '' });
   const [draft, setDraft] = useState(fields(task));
   const [baseline, setBaseline] = useState(fields(task));
   const [baselineRevision, setBaselineRevision] = useState(task.revision || 0);
@@ -123,6 +124,7 @@ export function TaskDrawer({ task, tasks, workstreams, canEdit, busy, mutate, on
         <fieldset disabled={!canEdit || busy || stale} className="form-grid">
           <Field label="Status"><select value={draft.status} onChange={e => setDraft({ ...draft, status: e.target.value as Status })}>{STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}</select></Field>
           <Field label="Priority"><select value={draft.priority} onChange={e => setDraft({ ...draft, priority: e.target.value as Priority })}>{Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+          <Field label="Migration phase" hint="This action appears in the selected phase section."><select value={draft.phase} onChange={e => setDraft({ ...draft, phase: e.target.value as LaunchPhase })}>{Object.entries(PHASE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field label="Owner"><input list={ownerList} value={draft.owner} onChange={e => setDraft({ ...draft, owner: e.target.value })} maxLength={120} placeholder="Assign an owner" /></Field><datalist id={ownerList}>{owners.map(owner => <option key={owner} value={owner} />)}</datalist>
           <Field label="Due date"><input type="date" value={draft.dueDate} onChange={e => setDraft({ ...draft, dueDate: e.target.value })} /></Field>
         </fieldset>
@@ -143,8 +145,8 @@ export function TaskDrawer({ task, tasks, workstreams, canEdit, busy, mutate, on
   </Modal>;
 }
 
-export function NewTaskModal({ project, tasks, busy, mutate, onClose }: { project: ProjectData; tasks: Task[]; busy: boolean; mutate: Mutate; onClose: () => void }) {
-  const [draft, setDraft] = useState({ title: '', description: '', workstreamId: project.workstreams[0]?.id || '', priority: 'medium', owner: '', dueDate: '', checklist: '' });
+export function NewTaskModal({ project, tasks, initialPhase = 'prelaunch', busy, mutate, onClose }: { project: ProjectData; tasks: Task[]; initialPhase?: LaunchPhase; busy: boolean; mutate: Mutate; onClose: () => void }) {
+  const [draft, setDraft] = useState({ title: '', description: '', workstreamId: project.workstreams[0]?.id || '', priority: 'medium', phase: initialPhase, owner: '', dueDate: '', checklist: '' });
   const [error, setError] = useState('');
   const listId = useId();
   async function submit(e: FormEvent) {
@@ -152,7 +154,7 @@ export function NewTaskModal({ project, tasks, busy, mutate, onClose }: { projec
     const items = draft.checklist.split('\n').map(item => item.trim()).filter(Boolean);
     if (items.length > 30 || items.some(item => item.length > 400)) { setError('Use up to 30 checklist items, with no more than 400 characters per item.'); return; }
     try {
-      await mutate({ type: 'task.create', task: { title: draft.title.trim(), description: draft.description.trim(), workstreamId: draft.workstreamId, priority: draft.priority, owner: draft.owner.trim(), dueDate: draft.dueDate || null, subtasks: items } }, 'New action added to the shared workspace.');
+      await mutate({ type: 'task.create', task: { title: draft.title.trim(), description: draft.description.trim(), workstreamId: draft.workstreamId, priority: draft.priority, phase: draft.phase, owner: draft.owner.trim(), dueDate: draft.dueDate || null, subtasks: items } }, 'New action added to the shared workspace.');
       onClose();
     } catch (e) { setError(e instanceof Error ? e.message : 'The action could not be created.'); }
   }
@@ -160,6 +162,7 @@ export function NewTaskModal({ project, tasks, busy, mutate, onClose }: { projec
     <Field label="What needs to happen?"><input required maxLength={200} value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="Give this action a clear title" /></Field>
     <Field label="Description"><textarea rows={3} value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} maxLength={6000} placeholder="Context, expected outcome, or acceptance criteria" /></Field>
     <div className="form-grid"><Field label="Workstream"><select value={draft.workstreamId} onChange={e => setDraft({ ...draft, workstreamId: e.target.value })}>{project.workstreams.map(w => <option value={w.id} key={w.id}>{w.title}</option>)}</select></Field><Field label="Priority"><select value={draft.priority} onChange={e => setDraft({ ...draft, priority: e.target.value })}>{Object.entries(PRIORITY_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field><Field label="Owner"><input list={listId} value={draft.owner} onChange={e => setDraft({ ...draft, owner: e.target.value })} maxLength={120} placeholder="Assign an owner" /></Field><datalist id={listId}>{Array.from(new Set(tasks.map(t => t.owner).filter(Boolean))).sort().map(owner => <option key={owner} value={owner} />)}</datalist><Field label="Due date"><input type="date" value={draft.dueDate} onChange={e => setDraft({ ...draft, dueDate: e.target.value })} /></Field></div>
+    <Field label="Migration phase" hint="Choose when this action belongs in the migration plan."><select value={draft.phase} onChange={e => setDraft({ ...draft, phase: e.target.value as LaunchPhase })}>{Object.entries(PHASE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
     <Field label="Checklist" hint="One item per line. Up to 30 items, with 400 characters each. Optional."><textarea value={draft.checklist} onChange={e => setDraft({ ...draft, checklist: e.target.value })} rows={3} maxLength={12000} placeholder="List the steps needed to complete this action" /></Field>
     {error && <p className="form-error" role="alert"><WarningCircle size={17} />{error}</p>}
     <div className="form-actions"><button className="button button-ghost" onClick={onClose} type="button">Cancel</button><button className="button button-primary" type="submit" disabled={busy}>{busy ? <SpinnerGap size={17} className="spin" /> : <Plus size={17} />}{busy ? 'Adding…' : 'Add action'}</button></div>
