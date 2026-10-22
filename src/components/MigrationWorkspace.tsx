@@ -11,6 +11,7 @@ import { PhaseOverview } from './PhaseOverview';
 import { getTaskPhase, milestoneInPhase, PHASE_LABELS, type LaunchPhase } from '../lib/migration/phases';
 import './phases.css';
 import SitebulbFindings from './SitebulbFindings';
+import './madx-theme.css';
 
 const NAVIGATION: { id: Section; title: string; icon: typeof SquaresFour }[] = [
   { id: 'overview', title: 'Overview', icon: SquaresFour },
