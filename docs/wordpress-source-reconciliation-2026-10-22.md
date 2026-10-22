@@ -2,11 +2,17 @@
 Checked: 2026-10-22 (UTC). Source: authenticated, read-only WPVibe inspection of https://www.postalytics.com. This is an inventory checkpoint, NOT migration approval or a complete redirect export.
 
 ## Historical redirects
-- Yoast SEO Premium: option `wpseo-premium-redirects-base` contains a PHP-serialized array declaring **673** records; `wpseo-premium-redirects-export-plain` also declares 673. Regex export option declares zero. Do not sum base and export versions: they represent the same rules in different forms. Source: WPVibe WP-CLI `option list --search=*redirect*`.
-- Rank Math: `wp_rank_math_redirections` has **81 rows** (may include inactive or archived rules; activation and targets still require row-level audit). Source: WPVibe `db query "SELECT COUNT(*) n FROM {prefix}rank_math_redirections"`.
-- `wp_sfm_redirects` has **1 row**, not yet classified. Source: WPVibe database count.
-- Pretty Links has **2 published** internal records. Source: `wp_posts` post-type/status counts. These may be tracking routes, not migration redirects.
-- These sources overlap potentially. **Do not claim 755 unique redirect rules** without deduplication. Also inspect web server, CDN, plugins, legacy backups and historical exports.
+- Yoast SEO Premium: option `wpseo-premium-redirects-base` contains a PHP-serialized array declaring **673** records; `wpseo-premium-redirects-export-plain` also declares 673. Regex export option declares zero. Do not sum base and export versions: they represent the same rules in different forms. Yoast source-path deduplication found 673 unique normalised origins. Source: WPVibe WP-CLI `option list --search=*redirect*`.
+- Rank Math: `wp_rank_math_redirections` has **81 rows** (all 81 currently have status=active; individual destinations and execution order still require verification). Source: WPVibe `db query "SELECT COUNT(*) n FROM {prefix}rank_math_redirections"`.
+- `wp_sfm_redirects` has **1 row**, classified as RSS feed redirection to SpecificFeeds, rather than an ordinary URL redirect. Source: WPVibe database row inspection.
+- Pretty Links has **2 enabled 301 tracking records**: `/jenni` and `/jennishow`, both currently configured to the homepage. Source: WPVibe `wp_prli_links` rows.
+- Of 81 active Rank Math rules, **80 normalised source paths overlap** with Yoast and **one** is unmatched: `/5-ways-to-use-direct-mail-and-email-marketing`. This yields **674 candidate distinct source paths** across these CMS systems (673 + 1), not 754. Of the 80 overlaps, two have divergent configured destinations, listed below. The 80 Yoast rules whose destinations also appear as Yoast source paths are **possible chains** requiring a runtime check; this is not proof of actual multi-hop behaviour. Also inspect web server, CDN, plugins, legacy backups and historical exports.
+
+## Redirect conflict queue
+These are **configuration conflicts, not confirmed live behaviour**. Inspect actual HTTP response and decide intended support destination before retaining or retiring either rule.
+1. `support/documentation/home/my-account/external-domain`: Yoast → `https://support.postalytics.com/support/solutions/articles/70000600607-vanity-domains-for-direct-mail`; Rank Math → `https://www.postalytics.com/support/documentation/home/my-account/external-domain-setup-for-purls`.
+2. `support/documentation/home/my-account/external-domain-setup-for-purls`: Yoast → `https://support.postalytics.com/support/solutions/folders/70000477545`; Rank Math → `https://www.postalytics.com/support/documentation/home/purls-qrs-and-domains/external-domain-setup`.
+Source: WPVibe Yoast option `wpseo-premium-redirects-base` and Rank Math table `wp_rank_math_redirections`. Both should remain **unapproved** until verified.
 
 ## WordPress content and inactive URLs
 Authenticated `wp_posts` query grouped by post_type and post_status:
