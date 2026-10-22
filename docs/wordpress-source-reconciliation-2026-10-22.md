@@ -34,6 +34,33 @@ Stored term taxonomy counts from `wp_term_taxonomy`: category **26**, post_tag *
 - Total 6,288. Source: `wp_posts` WHERE post_type='attachment' GROUP BY post_mime_type.
 - **Not yet verified:** upload file existence, generated thumbnail variants, attachment URL redirects, usage references, hotlinked or CSS-based images, or orphan files without DB entries. Each final media-catalog entry should include attachment ID, source upload path, canonical URL, usage, HTTP status, proposed target, decision status and direct source reference.
 
+
+## Ahrefs backlink-target checkpoint
+Source: Ahrefs Site Explorer `site_explorer_pages_by_backlinks` target `postalytics.com`, scope `subdomains`, columns `url_to,refdomains_target,links_to_target,http_code_target,target_redirect`, requested 1,000 rows but API returned **500** records. This is a **capped inventory, not a full export**.
+- 500 reported target URL entries, of which **51** directly target `/wp-content/uploads/` assets.
+- The sum of the `links_to_target` column over these returned rows is **70,779**. It is a sample-row sum, not an independent total, as aliases and URL variants may overlap.
+- Reported HTTP statuses: **44 200**, **33 301**, **1 302**, **2 404**, **231 429**, **189 null/unavailable**. A 429 signals throttling, not proof the destination is missing.
+- Representative high-impact targets: homepage protocol/hostname variants; `/direct-mail-statistics/` (369 referring domains, 1,516 links); `/blog/usps-tracking-not-updating/` (195 referring domains, 2,478 links, HTTP 429 in Ahrefs); `/blog/statistics-on-direct-mail` (301 to `/direct-mail-statistics/`, 504 links); `/blog/direct-mail-vs-email/` (301 to `/blog/email-vs-direct-mail/`, 352 links); `/wp-content/uploads/2018/10/Postcard-Back-Design-Template.png` (114 referring domains, 213 links).
+- The scope includes subdomains, including linked URLs on `app.postalytics.com` and `support.postalytics.com`; do not assume these are hosted in the primary WordPress instance.
+
+Source: Ahrefs Site Explorer `site_explorer_broken_backlinks`, same target/scope, requested 1,000 rows, returned **63** records reaching **26 unique target URL strings**, all reported as HTTP **404** by Ahrefs.
+- `https://support.postalytics.com/support/solutions/articles/70000679454--new-the-postalytics-canva-integration`: **29** sampled broken backlink rows.
+- `https://support.postalytics.com/template-editor-overview-video`: **8** rows.
+- Another **24** unique targets across the remaining **26** rows, predominantly old knowledge-base paths and integration guides.
+- **These are backlink observations rather than independently verified current HTTP responses.** Review Freshdesk/support host ownership and current help content with the client before recommending destinations. Prioritise customer-impacting guides and high-authority links.
+- A complete set of records and per-row backlink sources still needs to be persisted privately and reconciled with the existing protected decision register. Do not commit backlink-source row exports to this public repository.
+
+## Taxonomy and archive reconciliation detail
+Source: WPVibe `wp_term_taxonomy` grouped by taxonomy. Stored term counts and assignment counts:
+- `category`: 26 terms, 713 recorded assignments.
+- `post_tag`: 717 terms, 983 recorded assignments.
+- `doc_tag`: 125 terms, 155 recorded assignments.
+- `portfolio-type`: 4 terms, **zero** assignments, so do not infer active portfolio archive content from registration alone.
+Term relationships may include records that are not published; per-term published post counts and canonical/noindex response checks remain required. Pagination, feeds, author archives, the blog archive and customer-facing routes need direct HTTP verification.
+
+## Publication notes
+The client-facing dashboard source audit and aggregate metrics have been committed to `m0veproperty/postalytics-migration`. This is a public repository, so it holds **summary findings only**, not whole client CMS exports or the protected workspace records.
+
 ## Remaining reconciliation gates (open, not approved)
 1. Export and parse all **673** Yoast rules; enumerate 81 Rank Math rows and the single sfm row, including active flag, source, target, type, pattern, last changed; identify overlaps, loops, chains and redirects to retired URLs.
 2. Obtain legacy CDN / host / .htaccess / backup / original site redirects and any outside-CMS redirect history.
