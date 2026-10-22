@@ -10,6 +10,7 @@ import './polish.css';
 import { PhaseOverview } from './PhaseOverview';
 import { getTaskPhase, milestoneInPhase, PHASE_LABELS, type LaunchPhase } from '../lib/migration/phases';
 import './phases.css';
+import SitebulbFindings from './SitebulbFindings';
 
 const NAVIGATION: { id: Section; title: string; icon: typeof SquaresFour }[] = [
   { id: 'overview', title: 'Overview', icon: SquaresFour },
@@ -20,6 +21,7 @@ const NAVIGATION: { id: Section; title: string; icon: typeof SquaresFour }[] = [
   { id: 'documents', title: 'Documents', icon: FolderOpen },
   { id: 'milestones', title: 'Milestones', icon: Flag },
   { id: 'activity', title: 'Activity', icon: ClockCounterClockwise },
+  { id: 'onsite-seo', title: 'Onsite Technical SEO', icon: WarningCircle },
 ];
 const PAGE_COPY: Record<Section, { title: string; description: string }> = {
   overview: { title: 'Migration overview', description: 'The decisions, actions, and evidence behind a considered move.' },
@@ -30,6 +32,7 @@ const PAGE_COPY: Record<Section, { title: string; description: string }> = {
   documents: { title: 'The project reference shelf.', description: 'Working spreadsheets, client reports, and the evidence behind the recommendations.' },
   milestones: { title: 'From preparation to launch.', description: 'See the remaining dependencies and the work behind each milestone.' },
   activity: { title: 'A shared record of progress.', description: 'Changes made here, with the person and time behind every update.' },
+  'onsite-seo': { title: 'Onsite Technical SEO', description: 'Sitebulb crawl findings and remediation priorities for the migration.' },
 };
 
 async function responseJson<T>(response: Response): Promise<T> {
@@ -201,6 +204,7 @@ export default function MigrationWorkspace() {
         {section === 'decisions' && <DecisionsView decisions={decisions} loading={decisionLoading} error={decisionError} onRetry={() => void loadDecisions()} onDecision={openDecision} onApproval={openDecision} canEdit={canEdit && !busy} canApprove={canApprove} project={project} />}
         {section === 'documents' && <DocumentsView project={project} onPreview={setPreview} />}
         {section === 'milestones' && <MilestonesView project={project} tasks={tasks} onTask={setTaskId} onActions={openActions} />}
+        {section === 'onsite-seo' && <SitebulbFindings />}
         {section === 'activity' && <ActivityView activity={state?.activity || []} total={state?.activityTotal} tasks={tasks} onTask={setTaskId} onDecision={id => { openDecision(id); navigate('decisions'); }} />}
         <footer className="workspace-footer"><p>Prepared by MADX for Postalytics.</p><span>Source baseline: {formatDate(project.project.snapshotDate)} · Decisions remain proposals until recorded as approved.</span></footer>
       </main>
