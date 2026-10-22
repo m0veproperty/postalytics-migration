@@ -3,7 +3,7 @@ import type { LaunchPhase } from '../lib/migration/phases';
 
 export type Status = 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
 export type Priority = 'high' | 'medium' | 'low';
-export type Section = 'overview' | 'prelaunch' | 'postlaunch' | 'actions' | 'decisions' | 'documents' | 'milestones' | 'activity';
+export type Section = 'overview' | 'prelaunch' | 'postlaunch' | 'actions' | 'decisions' | 'documents' | 'milestones' | 'activity' | 'onsite-seo';
 export type SourceLink = { label: string; url: string };
 export type ChecklistItem = { id: string; title: string; done: boolean };
 export type Comment = { id: string; author: string; text: string; createdAt: string };
