@@ -1,0 +1,119 @@
+/* MADX editorial monochrome — applied after the existing Postalytics UI styles.
+   Keeps status meaning visible without depending on hue. */
+:root {
+  --ink:#141414;--muted:#626262;--muted-strong:#424242;--paper:#fafafa;
+  --surface:#fff;--canvas:#f7f7f7;--sidebar:#101010;
+  --green:#181818;--green-dark:#050505;--green-ink:#191919;
+  --green-soft:#ededed;--green-pale:#f5f5f5;--line:#e5e5e5;
+  --yellow:#dedede;--yellow-soft:#f5f5f5;--blue:#ebebeb;
+  --heading:'DM Sans',Arial,sans-serif;--body:'DM Sans',Arial,sans-serif;
+  --label:'DM Sans',Arial,sans-serif;
+}
+body{background:#f8f8f8;color:#191919}
+.workspace-shell,.workspace-dialog,.profile-access {
+  --ink:#151515;--muted:#696969;--muted-strong:#454545;--canvas:#f8f8f8;
+  --sidebar:#111;--green:#181818;--green-dark:#050505;--green-ink:#202020;
+  --green-soft:#efefef;--green-pale:#f6f6f6;--line:#e4e4e4;
+  --polish-shadow:0 8px 30px rgb(0 0 0 / .025);
+  color:#191919;
+}
+::selection{background:#242424;color:#fff}
+:where(.workspace-shell,.workspace-dialog,.profile-access) :is(button,a,input,select,textarea):focus-visible{outline:2px solid #1d1d1d;outline-offset:3px}
+.workspace-shell .sidebar{background:#111!important;border-right:1px solid #303030!important;color:#f7f7f7}
+.workspace-shell .sidebar :is(p,small,span,.sidebar-label,.source-stamp p,.madx-credit){color:#a9a9a9}
+.workspace-shell .sidebar :is(.brand,.brand-wordmark,.project-label strong,.source-stamp strong,.madx-credit>span:first-child){color:#fafafa!important}
+.workspace-shell .sidebar .brand{border-bottom-color:#303030}
+.workspace-shell .sidebar .project-label{background:#202020;border-color:#383838}
+.workspace-shell .sidebar .project-initial{background:#fafafa;border-color:#fafafa;color:#111}
+.workspace-shell .sidebar .main-nav button{color:#c3c3c3!important}
+.workspace-shell .sidebar .main-nav button :is(svg,span){color:inherit}
+.workspace-shell .sidebar .main-nav button.active{background:#f4f4f4!important;border-color:#f4f4f4!important;color:#111!important;box-shadow:none}
+.workspace-shell .sidebar .main-nav button:hover:not(.active){background:#242424!important;color:#fff!important}
+.workspace-shell .sidebar .main-nav button .nav-count{background:#333;color:#ddd}
+.workspace-shell .sidebar .main-nav button.active .nav-count{background:#e2e2e2;color:#111}
+.workspace-shell .sidebar .sidebar-export{background:#242424;border:1px solid #444;color:#fff}
+.workspace-shell .sidebar .sidebar-export:hover{background:#343434}
+.workspace-shell .topbar{background:#fff;border-bottom:1px solid #e9e9e9}
+.workspace-shell .main-shell{background:#f8f8f8}
+.workspace-shell .page-header{border-bottom:1px solid #e8e8e8;padding-bottom:23px}
+.workspace-shell .page-header h1{font-family:var(--heading);font-weight:650;letter-spacing:-.035em;color:#111}
+.workspace-shell .page-header .eyebrow{font-family:var(--body);font-size:11px;letter-spacing:.12em;color:#777}
+.workspace-shell .page-description{color:#686868}
+.workspace-shell .button-primary,.workspace-dialog .button-primary,.profile-access .button-primary{background:#161616!important;color:#fff!important;border-color:#161616!important;box-shadow:none}
+.workspace-shell .button-primary:hover:not(:disabled),.workspace-dialog .button-primary:hover:not(:disabled),.profile-access .button-primary:hover:not(:disabled){background:#343434!important;border-color:#343434!important}
+.workspace-shell .button-secondary,.workspace-dialog .button-secondary{background:#fff;color:#1d1d1d;border-color:#d6d6d6;box-shadow:none}
+.workspace-shell .button-secondary:hover:not(:disabled),.workspace-dialog .button-secondary:hover:not(:disabled){background:#f0f0f0;border-color:#bcbcbc}
+.workspace-shell .overview-intro{background:#181818!important;border-color:#181818!important;color:#fff}
+.workspace-shell .overview-intro h2,.workspace-shell .overview-intro .intro-number,.workspace-shell .overview-intro strong{color:#fff!important}
+.workspace-shell .overview-intro :is(p,span,.eyebrow,.fine-print){color:#c5c5c5!important}
+.workspace-shell .overview-intro .text-link{color:#fff!important}
+.workspace-shell .overview-intro .status-badge{background:#fff!important;color:#171717!important;border-color:#fff!important}
+.workspace-shell .overview-intro .status-badge span{color:#171717!important}
+.workspace-shell .intro-register{border-color:#494949}
+.workspace-shell .intro-divider{background:#505050}
+.workspace-shell .metrics-row{background:#fff;border:1px solid #e7e7e7;box-shadow:none}
+.workspace-shell .metric{background:#fff}
+.workspace-shell .metric:not(:last-child){border-right-color:#ededed}
+.workspace-shell .metric-value,.workspace-shell .metric-top,.workspace-shell .metric-top svg{color:#1b1b1b}
+.workspace-shell .metric>p{color:#737373}
+.workspace-shell :is(.panel,.document-card,.table-container,.kanban-card,.phase-milestone){background:#fff;border-color:#e4e4e4;box-shadow:none}
+.workspace-shell :is(.section-heading h2,.attention-title h2,.reference-panel h2,.decision-context h3,.document-main h2){color:#181818}
+.workspace-shell :is(.attention-panel,.reference-panel,.document-intro,.register-note){background:#f1f1f1;border-color:#e2e2e2;color:#222}
+.workspace-shell :is(.attention-panel,.reference-panel,.document-intro,.register-note) :is(h2,h3,strong){color:#181818}
+.workspace-shell :is(.attention-panel,.reference-panel,.document-intro,.register-note) p{color:#626262}
+.workspace-shell :is(.text-link,.inline-button,.phase-shortcuts button,.phase-all-milestones,.source-links a){color:#1e1e1e}
+.workspace-shell :is(.text-link,.inline-button):hover{color:#666}
+.workspace-shell :is(.action-preview-main>strong,.table-task strong,.decision-link>strong,.workstream-item h3,.kanban-card h3,.document-main h2){color:#202020}
+.workspace-shell .workstream-index{color:#777}
+.workspace-shell :is(.progress-track,.phase-progress-track){background:#e9e9e9}
+.workspace-shell :is(.progress-track>span,.phase-progress-track>span){background:#222}
+.workspace-shell :is(.filter-bar select,.search-field,.pagination select,.sb-search,.sb-controls select){background:#fff;border-color:#dcdcdc;color:#272727}
+.workspace-shell :is(th,.sb-table th){background:#f2f2f2;color:#555;border-color:#e7e7e7}
+.workspace-shell td{border-bottom-color:#eee}
+.workspace-shell tbody tr:hover{background:#fafafa}
+.workspace-shell :is(.kanban-column,.phase-summary,.phase-overview--postlaunch .phase-summary){background:#f2f2f2;border-color:#e3e3e3}
+.workspace-shell .phase-summary-copy h2,.workspace-shell .phase-section-heading h3,.workspace-shell .phase-actions-heading h2,.workspace-shell .phase-milestone h4{color:#1d1d1d}
+.workspace-shell :is(.phase-summary-copy p,.phase-summary-footer p,.phase-section-heading p,.phase-actions-heading p,.phase-milestone-progress p){color:#606060}
+.workspace-shell .phase-summary-icon,.workspace-shell .phase-overview--postlaunch .phase-summary-icon{background:#fff;border-color:#d8d8d8;color:#202020}
+.workspace-shell .phase-counts>div,.workspace-shell .phase-summary-footer{border-color:#dcdcdc}
+.workspace-shell .phase-counts dd,.workspace-shell .phase-milestone-progress strong{color:#202020}
+.workspace-shell .phase-counts dt{color:#777}
+.workspace-shell .phase-task-link{background:#fafafa;border-color:#e5e5e5}
+.workspace-shell .phase-task-link:hover{background:#f1f1f1}
+.workspace-shell :is(.phase-task-link strong,.phase-task-link svg){color:#242424}
+.workspace-shell .tab-group>button.selected,.workspace-shell .sb-tabs button.selected{background:#191919;color:#fff;border-color:#191919}
+.workspace-shell .tab-group>button.selected span,.workspace-shell .sb-tabs button.selected span{color:#dedede}
+.workspace-shell .status-badge{border:1px solid #d6d6d6;background:#f2f2f2;color:#3b3b3b}
+.workspace-shell .status-badge.status-done{background:#222;color:#fff;border-color:#222}
+.workspace-shell .status-badge.status-review{background:#e8e8e8;color:#222;border-color:#bdbdbd}
+.workspace-shell .status-badge.status-blocked{background:#f8eded;color:#823d3d;border-color:#e7caca}
+.workspace-shell .status-badge.status-in_progress{background:#ececec;color:#1d1d1d}
+.workspace-shell .status-badge>span{background:currentColor!important}
+.workspace-shell .priority-badge{color:#333}
+.workspace-shell .priority-badge.priority-high{color:#803f3f}
+.workspace-shell .avatar{background:#e6e6e6;color:#2a2a2a}
+.workspace-shell .decision-context{border-color:#e5e5e5}
+.workspace-shell .treatment-basis,.workspace-shell .treatment-basis.is-approved{color:#666}
+.workspace-shell .destination-text,.workspace-shell .cell-subtext{color:#636363}
+.workspace-shell .sb-counter{background:#fff}
+.workspace-shell .sb-counters{border-color:#e2e2e2;background:#e2e2e2}
+.workspace-shell .sb-counter strong{color:#191919}
+.workspace-shell .sb-counter span,.workspace-shell .sb-intro p,.workspace-shell .sb-section-header p{color:#686868}
+.workspace-shell .sb-note{background:#f1f1f1;border-color:#e1e1e1;color:#414141}
+.workspace-shell .sb-tabs button{border-color:#dedede;color:#444;background:#fff}
+.workspace-shell .sb-tabs button.selected{color:#fff;background:#181818;border-color:#181818}
+.workspace-shell .sb-table a{color:#222}
+.workspace-shell .sb-priority{background:#eee;color:#333;border-color:#d8d8d8}
+.workspace-shell .sb-priority.sb-high{background:#f8eaea;color:#834141;border-color:#ecd4d4}
+.workspace-shell .sb-priority.sb-medium{background:#f4f4f4;color:#303030;border-color:#d4d4d4}
+.workspace-shell .sb-priority.sb-verify{background:#eaeaea;color:#555;border-color:#d5d5d5}
+.workspace-dialog{background:transparent}
+.workspace-dialog .dialog-surface{background:#fff;color:#161616;border-color:#ddd}
+.profile-access{background:#f9f9f9;color:#202020}
+.workspace-shell :is(button,a,select){transition:background-color .16s ease,border-color .16s ease,color .16s ease}
+.workspace-shell :is(button,a,input,select,textarea):focus-visible{outline-color:#111}
+@media(max-width:760px){
+ .workspace-shell .page-header{padding-bottom:18px}
+ .workspace-shell .overview-intro{padding:24px}
+ .workspace-shell .metrics-row{box-shadow:none}
+}
